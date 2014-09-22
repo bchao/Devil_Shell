@@ -24,6 +24,7 @@ void new_child(job_t *j, process_t *p, bool fg)
   * group the terminal, if appropriate.  This has to be done both by
   * the dsh and in the individual child processes because of
   * potential race conditions.  
+  * hey
   * */
 
   p->pid = getpid();
