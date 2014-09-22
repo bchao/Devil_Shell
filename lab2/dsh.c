@@ -102,7 +102,7 @@ void new_child(job_t *j, process_t *p, bool fg)
  */
  bool builtin_cmd(job_t *last_job, int argc, char **argv) 
  {
-  printf("hello");
+  printf("Checking if built in command \n");
   /* check whether the cmd is a built in command*/
 
   if (!strcmp(argv[0], "quit")) {
@@ -115,6 +115,16 @@ void new_child(job_t *j, process_t *p, bool fg)
   }
   else if (!strcmp("cd", argv[0])) {
     /* Your code here */
+    printf("Executing cd \n");
+    
+    // Call chdir
+    int result = chdir(argv[1]);
+
+    // Set flags for last_job?? Do I need this?
+    last_job->first_process->completed = true;
+    last_job->first_process->status = 0;
+
+    return true;
   }
   else if (!strcmp("bg", argv[0])) {
     /* Your code here */
