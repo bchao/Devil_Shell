@@ -84,7 +84,7 @@ void new_child(job_t *j, process_t *p, bool fg)
 
             /* YOUR CODE HERE?  Parent-side code for new job.*/
       seize_tty(getpid()); // assign the terminal back to dsh
-
+      // parker branch test
     }
   }
 
