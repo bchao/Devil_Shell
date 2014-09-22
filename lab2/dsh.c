@@ -108,6 +108,11 @@ void new_child(job_t *j, process_t *p, bool fg)
   if (!strcmp(argv[0], "quit")) {
     /* Your code here */
     exit(EXIT_SUCCESS);
+
+    // Flags for last_job?
+    last_job->first_process->completed = true;
+    last_job->first_process->status = 0;
+    return true;
   }
   else if (!strcmp("jobs", argv[0])) {
     /* Your code here */
@@ -116,7 +121,7 @@ void new_child(job_t *j, process_t *p, bool fg)
   else if (!strcmp("cd", argv[0])) {
     /* Your code here */
     printf("Executing cd \n");
-    
+
     // Call chdir
     int result = chdir(argv[1]);
 
@@ -128,6 +133,7 @@ void new_child(job_t *j, process_t *p, bool fg)
   }
   else if (!strcmp("bg", argv[0])) {
     /* Your code here */
+    // OPTIONAL
   }
   else if (!strcmp("fg", argv[0])) {
     /* Your code here */
