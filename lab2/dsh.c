@@ -51,7 +51,6 @@ void new_child(job_t *j, process_t *p, bool fg)
 
  void spawn_job(job_t *j, bool fg) 
  {
-
   pid_t pid;
   process_t *p;
 
@@ -184,7 +183,7 @@ int main()
             /* spawn_job(j,true) */
             /* else */
             /* spawn_job(j,false) */
-    
+
     job_t * current_job = j;
     while (current_job != NULL) {
       int argc = current_job->first_process->argc;
