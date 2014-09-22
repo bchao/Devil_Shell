@@ -168,15 +168,15 @@ int main()
      * final code */
     if(PRINT_INFO) print_job(j);
 
-    /* Your code goes here */
-    /* You need to loop through jobs list since a command line can contain ;*/
-    /* Check for built-in commands */
-    /* If not built-in */
-        /* If job j runs in foreground */
-        /* spawn_job(j,true) */
-        /* else */
-        /* spawn_job(j,false) */
-
+        /* Your code goes here */
+        /* You need to loop through jobs list since a command line can contain ;*/
+        /* Check for built-in commands */
+        /* If not built-in */
+            /* If job j runs in foreground */
+            /* spawn_job(j,true) */
+            /* else */
+            /* spawn_job(j,false) */
+    
     job_t * current_job = j;
     while (current_job != NULL) {
       int argc = current_job->first_process->argc;
