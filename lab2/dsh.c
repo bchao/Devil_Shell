@@ -103,13 +103,17 @@ void new_child(job_t *j, process_t *p, bool fg)
  */
  bool builtin_cmd(job_t *last_job, int argc, char **argv) 
  {
-
-      /* check whether the cmd is a built in command
-        */
+  printf("Checking if built in command \n");
+  /* check whether the cmd is a built in command*/
 
   if (!strcmp(argv[0], "quit")) {
-            /* Your code here */
+    /* Your code here */
     exit(EXIT_SUCCESS);
+
+    // Flags for last_job?
+    last_job->first_process->completed = true;
+    last_job->first_process->status = 0;
+    return true;
   }
   else if (!strcmp("jobs", argv[0])) {
             /* Your code here */
@@ -133,10 +137,11 @@ void new_child(job_t *j, process_t *p, bool fg)
     return true;
   }
   else if (!strcmp("bg", argv[0])) {
-            /* Your code here */
+    /* Your code here */
+    // OPTIONAL
   }
   else if (!strcmp("fg", argv[0])) {
-            /* Your code here */
+    /* Your code here */
   }
   return false;       /* not a builtin command */
 }
@@ -171,7 +176,6 @@ int main()
       }
       continue; /* NOOP; user entered return or spaces with return */
     }
-        // stest2222222
         /* Your code goes here */
         /* You need to loop through jobs list since a command line can contain ;*/
         /* Check for built-in commands */
