@@ -102,26 +102,25 @@ void new_child(job_t *j, process_t *p, bool fg)
  */
  bool builtin_cmd(job_t *last_job, int argc, char **argv) 
  {
-
-      /* check whether the cmd is a built in command
-        */
+  printf("hello");
+  /* check whether the cmd is a built in command*/
 
   if (!strcmp(argv[0], "quit")) {
-            /* Your code here */
+    /* Your code here */
     exit(EXIT_SUCCESS);
   }
   else if (!strcmp("jobs", argv[0])) {
-            /* Your code here */
+    /* Your code here */
     return true;
   }
   else if (!strcmp("cd", argv[0])) {
-            /* Your code here */
+    /* Your code here */
   }
   else if (!strcmp("bg", argv[0])) {
-            /* Your code here */
+    /* Your code here */
   }
   else if (!strcmp("fg", argv[0])) {
-            /* Your code here */
+    /* Your code here */
   }
   return false;       /* not a builtin command */
 }
@@ -149,22 +148,27 @@ int main()
       continue; /* NOOP; user entered return or spaces with return */
     }
 
-        /* Only for debugging purposes to show parser output; turn off in the
-         * final code */
+    /* Only for debugging purposes to show parser output; turn off in the
+     * final code */
     if(PRINT_INFO) print_job(j);
 
-        /* Your code goes here */
-        /* You need to loop through jobs list since a command line can contain ;*/
-        /* Check for built-in commands */
-        /* If not built-in */
-            /* If job j runs in foreground */
-            /* spawn_job(j,true) */
-            /* else */
-            /* spawn_job(j,false) */
-    
+    /* Your code goes here */
+    /* You need to loop through jobs list since a command line can contain ;*/
+    /* Check for built-in commands */
+    /* If not built-in */
+        /* If job j runs in foreground */
+        /* spawn_job(j,true) */
+        /* else */
+        /* spawn_job(j,false) */
+
     job_t * current_job = j;
     while (current_job != NULL) {
+      int argc = current_job->first_process->argc;
+      char** argv = current_job->first_process->argv;
+      if (!builtin_cmd(current_job, argc, argv)) {
 
+      }
+      current_job = current_job->next;
     }
   }
 }
