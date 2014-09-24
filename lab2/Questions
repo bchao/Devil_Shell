@@ -1,0 +1,15 @@
+errno is set?
+can't acces wait man page - i type: man wait...also with chdir()
+how to handle searching for were the "executable is"
+cant access exit() man page as well
+how to learn about data structures parser.c returns?
+
+
+            	******QUESTIONS*****
+
+which process are we printing out here? can we update params in promptmsg()?
+what is job->mystdin, mystdout, mysterr = ?
+why won't printf("asdfasdf") work in the child process?
+if <, and the file dne, what happens? how to deal with this?
+if you call execvp() in a child process, then does it return back to that line?
+

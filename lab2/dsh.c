@@ -70,6 +70,27 @@ void new_child(job_t *j, process_t *p, bool fg)
       new_child(j, p, fg);
 
       /* YOUR CODE HERE?  Child-side code for new process. */
+      print_job(j);
+
+
+      if (p->ifile != NULL) {
+        printf("HELLLLLLL");
+        int newInFD = open(p->ifile, O_RDONLY);
+        dup2(newInFD, STDIN_FILENO);
+        execvp(p->argv[0], p->argv);
+        close(newInFD);
+      } else if (p->ofile != NULL) {
+        int newOutFD = open(p->ofile, O_APPEND | O_RDWR | O_CREAT, S_IRUSR | S_IWUSR | S_IXUSR);
+        dup2(newOutFD, STDOUT_FILENO);
+        execvp(p->argv[0], p->argv);
+        close(newOutFD);
+      } else {
+
+
+      execvp(p->argv[0], p->argv);
+
+      }
+
       perror("New child should have done an exec");
             exit(EXIT_FAILURE);  /* NOT REACHED */
             break;    /* NOT REACHED */
@@ -79,12 +100,13 @@ void new_child(job_t *j, process_t *p, bool fg)
       p->pid = pid;
       set_child_pgid(j, p);
 
+      int wc = wait(NULL);
+
             /* YOUR CODE HERE?  Parent-side code for new process.  */
     }
 
             /* YOUR CODE HERE?  Parent-side code for new job.*/
       seize_tty(getpid()); // assign the terminal back to dsh
-      // parker branch test
     }
   }
 
@@ -108,7 +130,6 @@ void new_child(job_t *j, process_t *p, bool fg)
   if (!strcmp(argv[0], "quit")) {
     /* Your code here */
     exit(EXIT_SUCCESS);
-
     // Flags for last_job?
     last_job->first_process->completed = true;
     last_job->first_process->status = 0;
@@ -192,10 +213,11 @@ int main()
         spawn_job(current_job, !(current_job->bg));
       }
       current_job = current_job->next;
+
     }
 
         /* Only for debugging purposes to show parser output; turn off in the
          * final code */
-    if(PRINT_INFO) print_job(j);    
+   // if(PRINT_INFO) print_job(j);    
   }
 }
