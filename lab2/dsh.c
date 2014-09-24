@@ -3,6 +3,7 @@
 void seize_tty(pid_t callingprocess_pgid); /* Grab control of the terminal for the calling process pgid.  */
 void continue_job(job_t *j); /* resume a stopped job */
 void spawn_job(job_t *j, bool fg); /* spawn a new job */
+void call_getcwd();
 
 /* Sets the process group id for a given job and process */
 int set_child_pgid(job_t *j, process_t *p)
@@ -50,7 +51,6 @@ void new_child(job_t *j, process_t *p, bool fg)
 
  void spawn_job(job_t *j, bool fg) 
  {
-
   pid_t pid;
   process_t *p;
 
@@ -102,28 +102,55 @@ void new_child(job_t *j, process_t *p, bool fg)
  */
  bool builtin_cmd(job_t *last_job, int argc, char **argv) 
  {
-
-      /* check whether the cmd is a built in command
-        */
+  printf("Checking if built in command \n");
+  /* check whether the cmd is a built in command*/
 
   if (!strcmp(argv[0], "quit")) {
-            /* Your code here */
+    /* Your code here */
     exit(EXIT_SUCCESS);
+
+    // Flags for last_job?
+    last_job->first_process->completed = true;
+    last_job->first_process->status = 0;
+    return true;
   }
   else if (!strcmp("jobs", argv[0])) {
             /* Your code here */
-    return true;
+    return false;
   }
   else if (!strcmp("cd", argv[0])) {
-            /* Your code here */
+    if(argc == 1){
+      if(chdir(getenv("HOME")) < 0) {
+        // error...
+        return false;
+      }
+      call_getcwd();
+      return true;
+    }
+
+    if (chdir(argv[1]) < 0) {
+      // error...
+      return false;
+    }
+    call_getcwd();
+    return true;
   }
   else if (!strcmp("bg", argv[0])) {
-            /* Your code here */
+    /* Your code here */
+    // OPTIONAL
   }
   else if (!strcmp("fg", argv[0])) {
-            /* Your code here */
+    /* Your code here */
   }
   return false;       /* not a builtin command */
+}
+
+void call_getcwd ()
+{
+  char * cwd;
+  cwd = getcwd(0, 0);
+  printf("dir: %s\n", cwd);
+  free(cwd);
 }
 
 /* Build prompt messaage */
@@ -148,12 +175,6 @@ int main()
       }
       continue; /* NOOP; user entered return or spaces with return */
     }
-
-        /* Only for debugging purposes to show parser output; turn off in the
-         * final code */
-    if(PRINT_INFO) print_job(j);
-
-        // stest2222222
         /* Your code goes here */
         /* You need to loop through jobs list since a command line can contain ;*/
         /* Check for built-in commands */
@@ -162,10 +183,19 @@ int main()
             /* spawn_job(j,true) */
             /* else */
             /* spawn_job(j,false) */
-    
+
     job_t * current_job = j;
     while (current_job != NULL) {
-
+      int argc = current_job->first_process->argc;
+      char** argv = current_job->first_process->argv;
+      if (!builtin_cmd(current_job, argc, argv)) {
+        spawn_job(current_job, !(current_job->bg));
+      }
+      current_job = current_job->next;
     }
+
+        /* Only for debugging purposes to show parser output; turn off in the
+         * final code */
+    if(PRINT_INFO) print_job(j);    
   }
 }
