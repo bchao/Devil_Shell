@@ -5,6 +5,12 @@ void continue_job(job_t *j); /* resume a stopped job */
 void spawn_job(job_t *j, bool fg); /* spawn a new job */
 void call_getcwd();
 
+void add_new_job(job_t *new_job);
+job_t *find_job(int job_id);
+void wait_for_fg(job_t *j);
+
+job_t *jobs_list = NULL;
+
 /* Sets the process group id for a given job and process */
 int set_child_pgid(job_t *j, process_t *p)
 {
@@ -56,6 +62,8 @@ void new_child(job_t *j, process_t *p, bool fg)
   int next_fd[2];
   int prev_fd[2];
 
+  add_new_job(j);
+
   for(p = j->first_process; p; p = p->next) {
 
     /* YOUR CODE HERE? */
@@ -66,14 +74,12 @@ void new_child(job_t *j, process_t *p, bool fg)
     }
 
     switch (pid = fork()) {
-
       case -1: /* fork failure */
         perror("Error: failed to fork");
         exit(EXIT_FAILURE);
 
       case 0: /* child process  */
         p->pid = getpid();      
-        new_child(j, p, fg);
 
         /* YOUR CODE HERE?  Child-side code for new process. */
         print_job(j);
@@ -90,6 +96,8 @@ void new_child(job_t *j, process_t *p, bool fg)
           close(next_fd[1]);
           close(next_fd[0]);
         }
+
+        new_child(j, p, fg);
 
         // I/O Redirection
         int newInFD;
@@ -116,9 +124,6 @@ void new_child(job_t *j, process_t *p, bool fg)
           execvp(p->argv[0], p->argv);          
         }
         
-        
-
-
         perror("New child should have done an exec");
         exit(EXIT_FAILURE);  /* NOT REACHED */
         break;    /* NOT REACHED */
@@ -133,6 +138,10 @@ void new_child(job_t *j, process_t *p, bool fg)
       /* YOUR CODE HERE?  Parent-side code for new job.*/
       seize_tty(getpid()); // assign the terminal back to dsh
     }
+
+    if(fg) {
+//      wait_for_fg(j);
+    }
   }
 
 /* Sends SIGCONT signal to wake up the blocked job */
@@ -142,6 +151,21 @@ void continue_job(job_t *j)
     perror("kill(SIGCONT)");
 }
 
+/* Wait for child in foreground to finish and exit */
+void wait_for_fg(job_t *j) {
+  /* not yet implemented */
+}
+
+job_t *find_job(int job_id) {
+  job_t *jobs = jobs_list;
+  while(jobs != NULL) {
+    if(jobs -> pgid == job_id) {
+      return jobs;
+    }
+    jobs = jobs -> next;
+  }
+  return NULL;
+}
 
 /* 
  * builtin_cmd - If the user has typed a built-in command then execute
@@ -161,8 +185,32 @@ bool builtin_cmd(job_t *last_job, int argc, char **argv)
     return true;
   }
   else if (!strcmp("jobs", argv[0])) {
-            /* Your code here */
-    return false;
+    job_t *job = jobs_list;
+    int job_count = 1;
+
+    while(job != NULL) {
+      printf("[%d]", job_count);
+
+      if(job -> notified){
+        printf(" Job stopped");
+      }
+      else {
+        printf(" Job running in");
+        if(job -> bg) {
+          printf(" bg: ");
+        }
+        else {
+          printf(" fg: ");
+        }
+      }
+
+      printf("%s\n", job -> commandinfo);
+      job_count++;
+      job = job -> next;
+    }
+
+    fflush(stdout);
+    return true;
   }
   else if (!strcmp("cd", argv[0])) {
     if(argc == 1){
@@ -182,13 +230,57 @@ bool builtin_cmd(job_t *last_job, int argc, char **argv)
     return true;
   }
   else if (!strcmp("bg", argv[0])) {
-    /* Your code here */
-    // OPTIONAL
+    int job_id = atoi(argv[1]);
+    job_t *job = find_job(job_id);
+
+    fflush(stdout);
+    continue_job(job);
+    job -> bg = true;
+    job -> notified = false;
+
+    return true;
   }
   else if (!strcmp("fg", argv[0])) {
-    /* Your code here */
+    int job_id;
+    job_t *job;
+
+    // if no arguments specified, continue last job stopped
+    if(argc == 1) {
+      job = find_job(-1);
+    }
+    else {
+      job_id = atoi(argv[1]);
+      job = find_job(job_id);
+    }
+
+    fflush(stdout);
+    continue_job(job);
+    job -> bg = false;
+    job -> notified = false;
+    seize_tty(job_id);
+
+    wait_for_fg(job);
+
+    return true;
   }
+
   return false;       /* not a builtin command */
+}
+
+void add_new_job(job_t *new_job) {
+  if(new_job == NULL) {
+    return;
+  }
+  if(jobs_list == NULL) {
+    jobs_list = new_job;
+  }
+  else {
+    job_t *curr = jobs_list;
+    while(curr -> next != NULL) {
+      curr = curr -> next;
+    }
+    curr -> next = new_job;
+  }
 }
 
 void call_getcwd ()
