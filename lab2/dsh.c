@@ -91,20 +91,33 @@ void new_child(job_t *j, process_t *p, bool fg)
           close(next_fd[0]);
         }
 
-        if (p->ifile != NULL) {
-          printf("HELLLLLLL");
-          int newInFD = open(p->ifile, O_RDONLY);
+        // I/O Redirection
+        int newInFD;
+        int newOutFD;
+        if (p->ifile != NULL && p->ofile != NULL) {
+          newInFD = open(p->ifile, O_RDONLY);
+          dup2(newInFD, STDIN_FILENO);
+          newOutFD = open(p->ofile, O_APPEND | O_RDWR | O_CREAT, S_IRUSR | S_IWUSR | S_IXUSR);
+          dup2(newOutFD, STDOUT_FILENO);
+          execvp(p->argv[0], p->argv);
+          close(newInFD);
+          close(newOutFD);
+        } else if (p->ifile != NULL) {
+          newInFD = open(p->ifile, O_RDONLY);
           dup2(newInFD, STDIN_FILENO);
           execvp(p->argv[0], p->argv);
           close(newInFD);
         } else if (p->ofile != NULL) {
-          int newOutFD = open(p->ofile, O_APPEND | O_RDWR | O_CREAT, S_IRUSR | S_IWUSR | S_IXUSR);
+          newOutFD = open(p->ofile, O_APPEND | O_RDWR | O_CREAT, S_IRUSR | S_IWUSR | S_IXUSR);
           dup2(newOutFD, STDOUT_FILENO);
           execvp(p->argv[0], p->argv);
           close(newOutFD);
         } else {
-          execvp(p->argv[0], p->argv);
+          execvp(p->argv[0], p->argv);          
         }
+        
+        
+
 
         perror("New child should have done an exec");
         exit(EXIT_FAILURE);  /* NOT REACHED */
