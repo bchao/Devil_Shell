@@ -1,9 +1,14 @@
 #include "dsh.h"
 
 void seize_tty(pid_t callingprocess_pgid); /* Grab control of the terminal for the calling process pgid.  */
+
 void continue_job(job_t *j); /* resume a stopped job */
+
 void spawn_job(job_t *j, bool fg); /* spawn a new job */
+
 void call_getcwd();
+
+void io_redirect(process_t *p);
 
 /* Sets the process group id for a given job and process */
 int set_child_pgid(job_t *j, process_t *p)
@@ -61,60 +66,74 @@ void new_child(job_t *j, process_t *p, bool fg)
 
     switch (pid = fork()) {
 
-          case -1: /* fork failure */
-      perror("fork");
-      exit(EXIT_FAILURE);
+      case -1: /* fork failure */
+        perror("Error: fork failed");
+        exit(EXIT_FAILURE);
 
-          case 0: /* child process  */
-      p->pid = getpid();      
-      new_child(j, p, fg);
+      case 0: /* child process  */
+        p->pid = getpid();      
+        new_child(j, p, fg);
 
-      /* YOUR CODE HERE?  Child-side code for new process. */
-      print_job(j);
-
-
-      if (p->ifile != NULL) {
-        printf("HELLLLLLL");
-        int newInFD = open(p->ifile, O_RDONLY);
-        dup2(newInFD, STDIN_FILENO);
-        execvp(p->argv[0], p->argv);
-        close(newInFD);
-      } else if (p->ofile != NULL) {
-        int newOutFD = open(p->ofile, O_APPEND | O_RDWR | O_CREAT, S_IRUSR | S_IWUSR | S_IXUSR);
-        dup2(newOutFD, STDOUT_FILENO);
-        execvp(p->argv[0], p->argv);
-        close(newOutFD);
-      } else {
+        /* YOUR CODE HERE?  Child-side code for new process. */
+        print_job(j);
 
 
-      execvp(p->argv[0], p->argv);
+        if (p->ifile != NULL) {
+          printf("HELLLLLLL");
+          int newInFD = open(p->ifile, O_RDONLY);
+          dup2(newInFD, STDIN_FILENO);
+          execvp(p->argv[0], p->argv);
+          close(newInFD);
+        } else if (p->ofile != NULL) {
+          int newOutFD = open(p->ofile, O_APPEND | O_RDWR | O_CREAT, S_IRUSR | S_IWUSR | S_IXUSR);
+          dup2(newOutFD, STDOUT_FILENO);
+          execvp(p->argv[0], p->argv);
+          close(newOutFD);
+        } else {
+          execvp(p->argv[0], p->argv);
+        }
 
-      }
+        perror("New child should have done an exec");
+        exit(EXIT_FAILURE);  /* NOT REACHED */
+        break;    /* NOT REACHED */
 
-      perror("New child should have done an exec");
-            exit(EXIT_FAILURE);  /* NOT REACHED */
-            break;    /* NOT REACHED */
+      default: /* parent */
+        /* establish child process group */
+        p->pid = pid;
+        set_child_pgid(j, p);
 
-          default: /* parent */
-            /* establish child process group */
-      p->pid = pid;
-      set_child_pgid(j, p);
-
-      int wc = wait(NULL);
+//      int wc = wait(NULL);
 
             /* YOUR CODE HERE?  Parent-side code for new process.  */
     }
 
             /* YOUR CODE HERE?  Parent-side code for new job.*/
       seize_tty(getpid()); // assign the terminal back to dsh
-    }
+  }
+}
+
+/* Handles file i/o */
+void io_redirect(process_t *p) {
+  if(p->ifile != NULL) {
+    int newInFD = open(p -> ifile, O_RDONLY);
+    dup2(newInFD, STDIN_FILENO);
+    close(newInFD);
   }
 
+  if(p->ofile != NULL) {
+    int newOutFD = creat(p -> ofile, 0644);
+    dup2(newOutFD, STDOUT_FILENO);
+    close(newOutFD);
+  }
+
+  execvp(p->argv[0], p->argv);
+}
+
 /* Sends SIGCONT signal to wake up the blocked job */
-  void continue_job(job_t *j) 
-  {
-   if(kill(-j->pgid, SIGCONT) < 0)
-    perror("kill(SIGCONT)");
+void continue_job(job_t *j) 
+{
+ if(kill(-j->pgid, SIGCONT) < 0)
+  perror("kill(SIGCONT)");
 }
 
 
@@ -122,8 +141,8 @@ void new_child(job_t *j, process_t *p, bool fg)
  * builtin_cmd - If the user has typed a built-in command then execute
  * it immediately.  
  */
- bool builtin_cmd(job_t *last_job, int argc, char **argv) 
- {
+bool builtin_cmd(job_t *last_job, int argc, char **argv) 
+{
   printf("Checking if built in command \n");
   /* check whether the cmd is a built in command*/
 
