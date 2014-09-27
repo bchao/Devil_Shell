@@ -75,7 +75,7 @@ void new_child(job_t *j, process_t *p, bool fg)
         p->pid = getpid();      
         new_child(j, p, fg);
 
-      /* YOUR CODE HERE?  Child-side code for new process. */
+        /* YOUR CODE HERE?  Child-side code for new process. */
         print_job(j);
 
         // piping
@@ -111,21 +111,21 @@ void new_child(job_t *j, process_t *p, bool fg)
         break;    /* NOT REACHED */
 
       default: /* parent */
-            /* establish child process group */
+        /* establish child process group */
         p->pid = pid;
         set_child_pgid(j, p);
         // int wc = wait(NULL);
             /* YOUR CODE HERE?  Parent-side code for new process.  */
     }
-            /* YOUR CODE HERE?  Parent-side code for new job.*/
+      /* YOUR CODE HERE?  Parent-side code for new job.*/
       seize_tty(getpid()); // assign the terminal back to dsh
     }
   }
 
 /* Sends SIGCONT signal to wake up the blocked job */
-  void continue_job(job_t *j) 
-  {
-   if(kill(-j->pgid, SIGCONT) < 0)
+void continue_job(job_t *j) 
+{
+  if(kill(-j->pgid, SIGCONT) < 0)
     perror("kill(SIGCONT)");
 }
 
@@ -134,8 +134,8 @@ void new_child(job_t *j, process_t *p, bool fg)
  * builtin_cmd - If the user has typed a built-in command then execute
  * it immediately.  
  */
- bool builtin_cmd(job_t *last_job, int argc, char **argv) 
- {
+bool builtin_cmd(job_t *last_job, int argc, char **argv) 
+{
   printf("Checking if built in command \n");
   /* check whether the cmd is a built in command*/
 
@@ -189,7 +189,7 @@ void call_getcwd ()
 /* Build prompt messaage */
 char* promptmsg() 
 {
-    /* Modify this to include pid */
+  /* Modify this to include pid */
   return "dsh$ ";
 }
 
@@ -225,7 +225,6 @@ int main()
         spawn_job(current_job, !(current_job->bg));
       }
       current_job = current_job->next;
-
     }
 
         /* Only for debugging purposes to show parser output; turn off in the
