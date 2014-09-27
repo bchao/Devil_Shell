@@ -58,16 +58,21 @@ void new_child(job_t *j, process_t *p, bool fg)
  {
   pid_t pid;
   process_t *p;
+  int next_fd[2];
+  int prev_fd[2];
 
   for(p = j->first_process; p; p = p->next) {
 
     /* YOUR CODE HERE? */
     /* Builtin commands are already taken care earlier */
 
-    switch (pid = fork()) {
+    if (p->next != NULL) {
+      pipe(next_fd);
+    }
 
+    switch (pid = fork()) {
       case -1: /* fork failure */
-        perror("Error: fork failed");
+        perror("Error: failed to fork");
         exit(EXIT_FAILURE);
 
       case 0: /* child process  */
@@ -77,6 +82,18 @@ void new_child(job_t *j, process_t *p, bool fg)
         /* YOUR CODE HERE?  Child-side code for new process. */
         print_job(j);
 
+        // piping
+        if (p!= j->first_process){
+          dup2(prev_fd[0], STDIN_FILENO);
+          close(prev_fd[0]);
+          close(prev_fd[1]);
+        }
+
+        if (p->next!= NULL){
+          dup2(next_fd[1],STDOUT_FILENO);
+          close(next_fd[1]);
+          close(next_fd[0]);
+        }
 
         if (p->ifile != NULL) {
           printf("HELLLLLLL");
@@ -101,13 +118,10 @@ void new_child(job_t *j, process_t *p, bool fg)
         /* establish child process group */
         p->pid = pid;
         set_child_pgid(j, p);
-
-//      int wc = wait(NULL);
-
+        // int wc = wait(NULL);
             /* YOUR CODE HERE?  Parent-side code for new process.  */
     }
-
-            /* YOUR CODE HERE?  Parent-side code for new job.*/
+      /* YOUR CODE HERE?  Parent-side code for new job.*/
       seize_tty(getpid()); // assign the terminal back to dsh
   }
 }
@@ -132,8 +146,8 @@ void io_redirect(process_t *p) {
 /* Sends SIGCONT signal to wake up the blocked job */
 void continue_job(job_t *j) 
 {
- if(kill(-j->pgid, SIGCONT) < 0)
-  perror("kill(SIGCONT)");
+  if(kill(-j->pgid, SIGCONT) < 0)
+    perror("kill(SIGCONT)");
 }
 
 
@@ -196,7 +210,7 @@ void call_getcwd ()
 /* Build prompt messaage */
 char* promptmsg() 
 {
-    /* Modify this to include pid */
+  /* Modify this to include pid */
   return "dsh$ ";
 }
 
@@ -232,7 +246,6 @@ int main()
         spawn_job(current_job, !(current_job->bg));
       }
       current_job = current_job->next;
-
     }
 
         /* Only for debugging purposes to show parser output; turn off in the
