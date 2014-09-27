@@ -53,58 +53,70 @@ void new_child(job_t *j, process_t *p, bool fg)
  {
   pid_t pid;
   process_t *p;
+  int next_fd[2];
+  int prev_fd[2];
 
   for(p = j->first_process; p; p = p->next) {
 
     /* YOUR CODE HERE? */
     /* Builtin commands are already taken care earlier */
 
-    switch (pid = fork()) {
-
-          case -1: /* fork failure */
-      perror("fork");
-      exit(EXIT_FAILURE);
-
-          case 0: /* child process  */
-      p->pid = getpid();      
-      new_child(j, p, fg);
-
-      /* YOUR CODE HERE?  Child-side code for new process. */
-      print_job(j);
-
-
-      if (p->ifile != NULL) {
-        printf("HELLLLLLL");
-        int newInFD = open(p->ifile, O_RDONLY);
-        dup2(newInFD, STDIN_FILENO);
-        execvp(p->argv[0], p->argv);
-        close(newInFD);
-      } else if (p->ofile != NULL) {
-        int newOutFD = open(p->ofile, O_APPEND | O_RDWR | O_CREAT, S_IRUSR | S_IWUSR | S_IXUSR);
-        dup2(newOutFD, STDOUT_FILENO);
-        execvp(p->argv[0], p->argv);
-        close(newOutFD);
-      } else {
-
-
-      execvp(p->argv[0], p->argv);
-
-      }
-
-      perror("New child should have done an exec");
-            exit(EXIT_FAILURE);  /* NOT REACHED */
-            break;    /* NOT REACHED */
-
-          default: /* parent */
-            /* establish child process group */
-      p->pid = pid;
-      set_child_pgid(j, p);
-
-      int wc = wait(NULL);
-
-            /* YOUR CODE HERE?  Parent-side code for new process.  */
+    if (p->next != NULL) {
+      pipe(next_fd);
     }
 
+    switch (pid = fork()) {
+
+      case -1: /* fork failure */
+        perror("Error: failed to fork");
+        exit(EXIT_FAILURE);
+
+      case 0: /* child process  */
+        p->pid = getpid();      
+        new_child(j, p, fg);
+
+      /* YOUR CODE HERE?  Child-side code for new process. */
+        print_job(j);
+
+        // piping
+        if (p!= j->first_process){
+          dup2(prev_fd[0], STDIN_FILENO);
+          close(prev_fd[0]);
+          close(prev_fd[1]);
+        }
+
+        if (p->next!= NULL){
+          dup2(next_fd[1],STDOUT_FILENO);
+          close(next_fd[1]);
+          close(next_fd[0]);
+        }
+
+        if (p->ifile != NULL) {
+          printf("HELLLLLLL");
+          int newInFD = open(p->ifile, O_RDONLY);
+          dup2(newInFD, STDIN_FILENO);
+          execvp(p->argv[0], p->argv);
+          close(newInFD);
+        } else if (p->ofile != NULL) {
+          int newOutFD = open(p->ofile, O_APPEND | O_RDWR | O_CREAT, S_IRUSR | S_IWUSR | S_IXUSR);
+          dup2(newOutFD, STDOUT_FILENO);
+          execvp(p->argv[0], p->argv);
+          close(newOutFD);
+        } else {
+          execvp(p->argv[0], p->argv);
+        }
+
+        perror("New child should have done an exec");
+        exit(EXIT_FAILURE);  /* NOT REACHED */
+        break;    /* NOT REACHED */
+
+      default: /* parent */
+            /* establish child process group */
+        p->pid = pid;
+        set_child_pgid(j, p);
+        // int wc = wait(NULL);
+            /* YOUR CODE HERE?  Parent-side code for new process.  */
+    }
             /* YOUR CODE HERE?  Parent-side code for new job.*/
       seize_tty(getpid()); // assign the terminal back to dsh
     }
