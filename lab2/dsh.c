@@ -6,6 +6,7 @@ void spawn_job(job_t *j, bool fg); /* spawn a new job */
 void call_getcwd();
 
 void add_new_job(job_t *new_job);
+process_t *find_process(int pid);
 job_t *find_job(int job_id);
 void wait_for_fg(job_t *j);
 
@@ -55,8 +56,8 @@ void new_child(job_t *j, process_t *p, bool fg)
  * subsequent processes in a pipeline.
  * */
 
- void spawn_job(job_t *j, bool fg) 
- {
+void spawn_job(job_t *j, bool fg) 
+{
   pid_t pid;
   process_t *p;
   int next_fd[2];
@@ -99,6 +100,8 @@ void new_child(job_t *j, process_t *p, bool fg)
 
         new_child(j, p, fg);
 
+
+
         // I/O Redirection
         int newInFD;
         int newOutFD;
@@ -135,14 +138,38 @@ void new_child(job_t *j, process_t *p, bool fg)
         // int wc = wait(NULL);
             /* YOUR CODE HERE?  Parent-side code for new process.  */
     }
-      /* YOUR CODE HERE?  Parent-side code for new job.*/
-      seize_tty(getpid()); // assign the terminal back to dsh
+
+    /* YOUR CODE HERE?  Parent-side code for new job.*/
+    if(fg){
+      wait_for_fg(j);      
+    }
+//    seize_tty(getpid()); // assign the terminal back to dsh
+  }
+}
+
+/* Wait for child in foreground to finish and exit */
+void wait_for_fg(job_t *job) {
+  int status, pid;
+
+  while((pid = waitpid(WAIT_ANY, &status, WUNTRACED)) > 0) {
+    process_t *process = find_process(pid);
+
+    if(WIFEXITED(status)) {
+      process -> completed = true;
+    }
+    else if (WIFSTOPPED(status)) {
+      process -> stopped = true;
+      job -> notified = true;
+      job -> bg = true;
     }
 
-    if(fg) {
-//      wait_for_fg(j);
+    //isatty() returns 1 if fd is an open file descriptor referring to a terminal; otherwise 0 is returned, and errno is set to indicate the error.      
+    if(job_is_stopped(job) && isatty(STDIN_FILENO)){
+      seize_tty(getpid());
+      break;
     }
   }
+}
 
 /* Sends SIGCONT signal to wake up the blocked job */
 void continue_job(job_t *j) 
@@ -151,9 +178,24 @@ void continue_job(job_t *j)
     perror("kill(SIGCONT)");
 }
 
-/* Wait for child in foreground to finish and exit */
-void wait_for_fg(job_t *j) {
-  /* not yet implemented */
+process_t *find_process(int pid) {
+  job_t *job = jobs_list;
+
+  while(job != NULL) {
+    process_t *process = job -> first_process;
+
+    while(process != NULL) {
+      if(process -> pid == pid) {
+        return process;
+      }
+
+      process = process -> next;
+    }
+
+    job = job -> next;
+  }
+
+  return NULL;
 }
 
 job_t *find_job(int job_id) {
