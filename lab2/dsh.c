@@ -133,9 +133,18 @@ void spawn_job(job_t *j, bool fg)
 
       default: /* parent */
         /* establish child process group */
+
+        if (p != j->first_process){
+          close(prev_fd[0]);
+          close(prev_fd[1]);
+       }
         p->pid = pid;
         set_child_pgid(j, p);
         // int wc = wait(NULL);
+        if (p->next != NULL) {
+          prev_fd[0] = next_fd[0];
+          prev_fd[1] = next_fd[1];
+        }
             /* YOUR CODE HERE?  Parent-side code for new process.  */
     }
 
