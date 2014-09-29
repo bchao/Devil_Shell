@@ -6,8 +6,10 @@ void spawn_job(job_t *j, bool fg); /* spawn a new job */
 void call_getcwd();
 
 void add_new_job(job_t *new_job);
+process_t *find_process(int pid);
 job_t *find_job(int job_id);
-void wait_for_fg(job_t *j);
+void wait_pid_help(job_t *j, bool fg);
+bool free_job(job_t *j);
 
 job_t *jobs_list = NULL;
 
@@ -137,21 +139,21 @@ void new_child(job_t *j, process_t *p, bool fg)
           close(prev_fd[0]);
           close(prev_fd[1]);
         }
-        // wait(NULL);
-        if(fg){
-          // wait(NULL);
-          wait_for_fg(j);
-        }
+        // if(fg){
+        //   // wait(NULL);
+        //   wait_pid_help(j);
+        // }
         if (p->next != NULL) {
           prev_fd[0] = next_fd[0];
           prev_fd[1] = next_fd[1];
         }
         /* YOUR CODE HERE?  Parent-side code for new process.  */
     }
-      /* YOUR CODE HERE?  Parent-side code for new job.*/
-      seize_tty(getpid()); // assign the terminal back to dsh
-    }
+
+
+    wait_pid_help(j, fg);
   }
+}
 
 /* Sends SIGCONT signal to wake up the blocked job */
 void continue_job(job_t *j) 
@@ -161,9 +163,25 @@ void continue_job(job_t *j)
 }
 
 /* Wait for child in foreground to finish and exit */
-void wait_for_fg(job_t *j) {
-  int status;
-  waitpid(WAIT_ANY, &status, WUNTRACED);
+void wait_pid_help(job_t *j, bool fg) {
+  int status, pid;
+  while((pid = waitpid(-1, &status, WUNTRACED)) > 0) {
+    process_t *p = find_process(pid);
+    if(WIFEXITED(status)) {
+      p->completed = true;
+      fflush(stdout);
+    }
+    else if (WIFSTOPPED(status)) {
+      p->stopped = true;
+      j->notified = true;
+      j->bg = true;
+    }
+
+    if(job_is_stopped(j) && isatty(STDIN_FILENO)) {
+      seize_tty(getpid());
+      break;
+    }
+  }
 }
 
 job_t *find_job(int job_id) {
@@ -198,9 +216,6 @@ process_t *find_process(int pid) {
  */
 bool builtin_cmd(job_t *last_job, int argc, char **argv) 
 {
-  printf("Checking if built in command \n");
-  /* check whether the cmd is a built in command*/
-
   if (!strcmp(argv[0], "quit")) {
     /* Your code here */
     exit(EXIT_SUCCESS);
@@ -210,14 +225,18 @@ bool builtin_cmd(job_t *last_job, int argc, char **argv)
     return true;
   }
   else if (!strcmp("jobs", argv[0])) {
+
     job_t *job = jobs_list;
     int job_count = 1;
 
     while(job != NULL) {
       printf("[%d]", job_count);
 
-      if(job -> notified){
-        printf(" Job stopped");
+      if(job_is_stopped(job)){
+        printf(" Job stopped: ");
+      }
+      if(job_is_completed(job)) {
+        printf(" Job completed: ");
       }
       else {
         printf(" Job running in");
@@ -233,6 +252,28 @@ bool builtin_cmd(job_t *last_job, int argc, char **argv)
       job_count++;
       job = job -> next;
     }
+
+    // remove completed jobs
+    job = jobs_list;
+    job_t *prev;
+    while(job != NULL) {
+      if(job_is_completed(job)) {
+        if(job == jobs_list) {
+          job = jobs_list -> next;          
+          jobs_list = job;
+        }
+        else {
+          prev -> next = job -> next;
+          free_job(prev);
+          job = prev -> next;
+        }
+      }
+      else {
+        prev = job;
+        job = job->next;
+      }
+    }
+
 
     fflush(stdout);
     return true;
@@ -284,7 +325,7 @@ bool builtin_cmd(job_t *last_job, int argc, char **argv)
     job -> notified = false;
     seize_tty(job_id);
 
-    wait_for_fg(job);
+    wait_pid_help(job, true);
 
     return true;
   }
