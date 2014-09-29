@@ -163,6 +163,7 @@ void continue_job(job_t *j)
 /* Wait for child in foreground to finish and exit */
 void wait_for_fg(job_t *j) {
   /* not yet implemented */
+  wait(NULL);
 }
 
 job_t *find_job(int job_id) {
