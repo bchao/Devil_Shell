@@ -66,7 +66,6 @@ void spawn_job(job_t *j, bool fg)
   add_new_job(j);
 
   for(p = j->first_process; p; p = p->next) {
-
     /* YOUR CODE HERE? */
     /* Builtin commands are already taken care earlier */
 
@@ -83,7 +82,7 @@ void spawn_job(job_t *j, bool fg)
         p->pid = getpid();      
 
         /* YOUR CODE HERE?  Child-side code for new process. */
-        print_job(j);
+        // print_job(j);
 
         // piping
         if (p!= j->first_process){
@@ -97,11 +96,7 @@ void spawn_job(job_t *j, bool fg)
           close(next_fd[1]);
           close(next_fd[0]);
         }
-
         new_child(j, p, fg);
-
-
-
         // I/O Redirection
         int newInFD;
         int newOutFD;
@@ -124,9 +119,8 @@ void spawn_job(job_t *j, bool fg)
           execvp(p->argv[0], p->argv);
           close(newOutFD);
         } else {
-          execvp(p->argv[0], p->argv);          
+          execvp(p->argv[0], p->argv);
         }
-        
         perror("New child should have done an exec");
         exit(EXIT_FAILURE);  /* NOT REACHED */
         break;    /* NOT REACHED */
@@ -140,7 +134,7 @@ void spawn_job(job_t *j, bool fg)
        }
         p->pid = pid;
         set_child_pgid(j, p);
-        // int wc = wait(NULL);
+        int wc = wait(NULL);
         if (p->next != NULL) {
           prev_fd[0] = next_fd[0];
           prev_fd[1] = next_fd[1];
@@ -160,13 +154,13 @@ void spawn_job(job_t *j, bool fg)
 void wait_for_fg(job_t *job) {
   int status, pid;
 
-  while((pid = waitpid(WAIT_ANY, &status, WUNTRACED)) > 0) {
+  while((pid = waitpid(WAIT_ANY, &status, WNOHANG | WUNTRACED)) > 0) {
     process_t *process = find_process(pid);
 
-    if(WIFEXITED(status)) {
+    if(WIFEXITED(status) != 0) {
       process -> completed = true;
     }
-    else if (WIFSTOPPED(status)) {
+    else if (WIFSTOPPED(status) != 0) {
       process -> stopped = true;
       job -> notified = true;
       job -> bg = true;
@@ -281,15 +275,15 @@ bool builtin_cmd(job_t *last_job, int argc, char **argv)
     return true;
   }
   else if (!strcmp("bg", argv[0])) {
-    int job_id = atoi(argv[1]);
-    job_t *job = find_job(job_id);
+    // int job_id = atoi(argv[1]);
+    // job_t *job = find_job(job_id);
 
-    fflush(stdout);
-    continue_job(job);
-    job -> bg = true;
-    job -> notified = false;
+    // fflush(stdout);
+    // continue_job(job);
+    // job -> bg = true;
+    // job -> notified = false;
 
-    return true;
+    return false;
   }
   else if (!strcmp("fg", argv[0])) {
     int job_id;
