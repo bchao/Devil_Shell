@@ -84,6 +84,8 @@ void new_child(job_t *j, process_t *p, bool fg)
         /* YOUR CODE HERE?  Child-side code for new process. */
         print_job(j);
 
+        new_child(j, p, fg);
+
         // piping
         if (p!= j->first_process){
           dup2(prev_fd[0], STDIN_FILENO);
@@ -96,8 +98,6 @@ void new_child(job_t *j, process_t *p, bool fg)
           close(next_fd[1]);
           close(next_fd[0]);
         }
-
-        new_child(j, p, fg);
 
         // I/O Redirection
         int newInFD;
@@ -130,19 +130,19 @@ void new_child(job_t *j, process_t *p, bool fg)
 
       default: /* parent */
         /* establish child process group */
-
-        if (p != j->first_process){
-          close(prev_fd[0]);
-          close(prev_fd[1]);
-       }
         p->pid = pid;
         set_child_pgid(j, p);
+
+        if (p != j->first_process) {
+          close(prev_fd[0]);
+          close(prev_fd[1]);
+        }
         wait(NULL);
         if (p->next != NULL) {
           prev_fd[0] = next_fd[0];
           prev_fd[1] = next_fd[1];
         }
-            /* YOUR CODE HERE?  Parent-side code for new process.  */
+        /* YOUR CODE HERE?  Parent-side code for new process.  */
     }
       /* YOUR CODE HERE?  Parent-side code for new job.*/
       seize_tty(getpid()); // assign the terminal back to dsh
