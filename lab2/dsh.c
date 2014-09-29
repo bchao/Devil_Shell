@@ -137,7 +137,11 @@ void new_child(job_t *j, process_t *p, bool fg)
           close(prev_fd[0]);
           close(prev_fd[1]);
         }
-        wait(NULL);
+        // wait(NULL);
+        if(fg){
+          // wait(NULL);
+          wait_for_fg(j);
+        }
         if (p->next != NULL) {
           prev_fd[0] = next_fd[0];
           prev_fd[1] = next_fd[1];
@@ -146,10 +150,6 @@ void new_child(job_t *j, process_t *p, bool fg)
     }
       /* YOUR CODE HERE?  Parent-side code for new job.*/
       seize_tty(getpid()); // assign the terminal back to dsh
-    }
-
-    if(fg) {
-//      wait_for_fg(j);
     }
   }
 
@@ -162,8 +162,8 @@ void continue_job(job_t *j)
 
 /* Wait for child in foreground to finish and exit */
 void wait_for_fg(job_t *j) {
-  /* not yet implemented */
-  wait(NULL);
+  int status;
+  waitpid(WAIT_ANY, &status, WUNTRACED);
 }
 
 job_t *find_job(int job_id) {
@@ -174,6 +174,21 @@ job_t *find_job(int job_id) {
     }
     jobs = jobs -> next;
   }
+  return NULL;
+}
+
+process_t *find_process(int pid) {
+  job_t *jobs = jobs_list;
+  while(jobs != NULL) {
+    process_t *process = jobs -> first_process;
+    while(process != NULL) {
+      if(process -> pid == pid)
+        return process;
+      process = process -> next;
+    }
+    jobs = jobs -> next;
+  }
+
   return NULL;
 }
 
@@ -331,6 +346,7 @@ int main()
             /* spawn_job(j,true) */
             /* else */
             /* spawn_job(j,false) */
+
 
     job_t * current_job = j;
     while (current_job != NULL) {
