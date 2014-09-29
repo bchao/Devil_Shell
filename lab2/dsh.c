@@ -137,7 +137,7 @@ void new_child(job_t *j, process_t *p, bool fg)
        }
         p->pid = pid;
         set_child_pgid(j, p);
-        // int wc = wait(NULL);
+        wait(NULL);
         if (p->next != NULL) {
           prev_fd[0] = next_fd[0];
           prev_fd[1] = next_fd[1];
