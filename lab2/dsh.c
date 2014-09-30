@@ -61,16 +61,18 @@ void new_child(job_t *j, process_t *p, bool fg)
  {
   pid_t pid;
   process_t *p;
-  int next_fd[2];
   int prev_fd[2];
 
-  add_new_job(j);
-
   for(p = j->first_process; p; p = p->next) {
+
+    if (p == j->first_process) {
+      add_new_job(j);
+    }
 
     /* YOUR CODE HERE? */
     /* Builtin commands are already taken care earlier */
 
+    int next_fd[2];
     if (p->next != NULL) {
       pipe(next_fd);
     }
@@ -82,7 +84,7 @@ void new_child(job_t *j, process_t *p, bool fg)
 
       case 0: /* child process  */
         p->pid = getpid();      
-
+        // set_child_pgid(j, p);
         /* YOUR CODE HERE?  Child-side code for new process. */
         print_job(j);
 
@@ -126,31 +128,38 @@ void new_child(job_t *j, process_t *p, bool fg)
           execvp(p->argv[0], p->argv);          
         }
         
+
         perror("New child should have done an exec");
         exit(EXIT_FAILURE);  /* NOT REACHED */
         break;    /* NOT REACHED */
 
       default: /* parent */
         /* establish child process group */
+
+        close(next_fd[1]);
+        if (p->next == NULL) {
+          close(next_fd[0]);
+        }
+
         p->pid = pid;
         set_child_pgid(j, p);
 
-        if (p != j->first_process) {
-          close(prev_fd[0]);
-          close(prev_fd[1]);
-        }
+        // if (p != j->first_process) {
+        //   close(prev_fd[0]);
+        //   close(prev_fd[1]);
+        // }
         // if(fg){
         //   // wait(NULL);
         //   wait_pid_help(j);
         // }
-        if (p->next != NULL) {
+        //if (p->next != NULL) {
           prev_fd[0] = next_fd[0];
           prev_fd[1] = next_fd[1];
-        }
+        //}
         /* YOUR CODE HERE?  Parent-side code for new process.  */
     }
-    wait_pid_help(j, fg);
   }
+  wait_pid_help(j, fg);
 }
 
 /* Sends SIGCONT signal to wake up the blocked job */
