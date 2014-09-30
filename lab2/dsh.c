@@ -149,8 +149,6 @@ void new_child(job_t *j, process_t *p, bool fg)
         }
         /* YOUR CODE HERE?  Parent-side code for new process.  */
     }
-
-
     wait_pid_help(j, fg);
   }
 }
@@ -347,6 +345,7 @@ void add_new_job(job_t *new_job) {
     }
     curr -> next = new_job;
   }
+  new_job->next = NULL;
 }
 
 void call_getcwd ()
