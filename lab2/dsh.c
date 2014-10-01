@@ -63,11 +63,13 @@ void new_child(job_t *j, process_t *p, bool fg)
   process_t *p;
   int prev_fd[2];
 
+  add_new_job(j);
+
   for(p = j->first_process; p; p = p->next) {
 
-    if (p == j->first_process) {
-      add_new_job(j);
-    }
+    // if (p == j->first_process) {
+    //   add_new_job(j);
+    // }
 
     /* YOUR CODE HERE? */
     /* Builtin commands are already taken care earlier */
@@ -88,20 +90,22 @@ void new_child(job_t *j, process_t *p, bool fg)
         /* YOUR CODE HERE?  Child-side code for new process. */
         print_job(j);
 
-        new_child(j, p, fg);
+        set_child_pgid(j, p);
 
         // piping
         if (p!= j->first_process){
+          close(prev_fd[1]);
           dup2(prev_fd[0], STDIN_FILENO);
           close(prev_fd[0]);
-          close(prev_fd[1]);
         }
 
         if (p->next!= NULL){
+          close(next_fd[0]);
           dup2(next_fd[1],STDOUT_FILENO);
           close(next_fd[1]);
-          close(next_fd[0]);
         }
+
+        new_child(j, p, fg);
 
         // I/O Redirection
         int newInFD;
@@ -127,7 +131,6 @@ void new_child(job_t *j, process_t *p, bool fg)
         } else {
           execvp(p->argv[0], p->argv);          
         }
-        
 
         perror("New child should have done an exec");
         exit(EXIT_FAILURE);  /* NOT REACHED */
@@ -158,8 +161,8 @@ void new_child(job_t *j, process_t *p, bool fg)
         //}
         /* YOUR CODE HERE?  Parent-side code for new process.  */
     }
+    wait_pid_help(j, fg);
   }
-  wait_pid_help(j, fg);
 }
 
 /* Sends SIGCONT signal to wake up the blocked job */
