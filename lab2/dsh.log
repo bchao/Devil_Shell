@@ -1,0 +1,12 @@
+4194(Launched): cat
+4194(Stopped): cat
+4194: Terminated by signal 2.
+4409(Launched): ls
+4412(Launched): pwd
+4418(Launched): pwd
+4465(Launched): sleep 1000
+4194(Completed): cat
+4409(Completed): ls
+4412(Completed): pwd
+4418(Completed): pwd
+4465(Running): sleep 1000
