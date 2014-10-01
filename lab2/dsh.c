@@ -6,8 +6,11 @@ void spawn_job(job_t *j, bool fg); /* spawn a new job */
 void call_getcwd();
 
 void add_new_job(job_t *new_job);
+process_t *find_process(int pid);
 job_t *find_job(int job_id);
-void wait_for_fg(job_t *j);
+job_t* getLastSuspendedJob();
+void wait_pid_help(job_t *j, bool fg);
+bool free_job(job_t *j);
 
 job_t *jobs_list = NULL;
 
@@ -60,7 +63,6 @@ void new_child(job_t *j, process_t *p, bool fg)
  {
   pid_t pid;
   process_t *p;
-  int next_fd[2];
   int prev_fd[2];
 
   add_new_job(j);
@@ -70,6 +72,7 @@ void new_child(job_t *j, process_t *p, bool fg)
     /* YOUR CODE HERE? */
     /* Builtin commands are already taken care earlier */
 
+    int next_fd[2];
     if (p->next != NULL) {
       pipe(next_fd);
     }
@@ -81,24 +84,25 @@ void new_child(job_t *j, process_t *p, bool fg)
 
       case 0: /* child process  */
         p->pid = getpid();      
-
         /* YOUR CODE HERE?  Child-side code for new process. */
         print_job(j);
 
+        //set_child_pgid(j, p);
+        new_child(j, p, fg);
+
         // piping
         if (p!= j->first_process){
+          close(prev_fd[1]);
           dup2(prev_fd[0], STDIN_FILENO);
           close(prev_fd[0]);
-          close(prev_fd[1]);
         }
 
         if (p->next!= NULL){
+          close(next_fd[0]);
           dup2(next_fd[1],STDOUT_FILENO);
           close(next_fd[1]);
-          close(next_fd[0]);
         }
 
-        new_child(j, p, fg);
 
         // I/O Redirection
         int newInFD;
@@ -124,35 +128,37 @@ void new_child(job_t *j, process_t *p, bool fg)
         } else {
           execvp(p->argv[0], p->argv);          
         }
-        
+
         perror("New child should have done an exec");
+        
         exit(EXIT_FAILURE);  /* NOT REACHED */
         break;    /* NOT REACHED */
 
       default: /* parent */
         /* establish child process group */
 
-        if (p != j->first_process){
-          close(prev_fd[0]);
-          close(prev_fd[1]);
-       }
+        // close(next_fd[1]);
+        // if (p->next == NULL) {
+        //   close(next_fd[0]);
+        // }
+
         p->pid = pid;
         set_child_pgid(j, p);
-        wait(NULL);
-        if (p->next != NULL) {
+
+        if (p != j->first_process) {
+          close(prev_fd[0]);
+          close(prev_fd[1]);
+        }
+
+        //if (p->next != NULL) {
           prev_fd[0] = next_fd[0];
           prev_fd[1] = next_fd[1];
-        }
-            /* YOUR CODE HERE?  Parent-side code for new process.  */
-    }
-      /* YOUR CODE HERE?  Parent-side code for new job.*/
-      seize_tty(getpid()); // assign the terminal back to dsh
-    }
-
-    if(fg) {
-//      wait_for_fg(j);
+        //}
+        /* YOUR CODE HERE?  Parent-side code for new process.  */
     }
   }
+  wait_pid_help(j, fg);
+}
 
 /* Sends SIGCONT signal to wake up the blocked job */
 void continue_job(job_t *j) 
@@ -162,12 +168,30 @@ void continue_job(job_t *j)
 }
 
 /* Wait for child in foreground to finish and exit */
-void wait_for_fg(job_t *j) {
-  /* not yet implemented */
+void wait_pid_help(job_t *j, bool fg) {
+  int status, pid;
+  while((pid = waitpid(-1, &status, WUNTRACED)) > 0) {
+    process_t *p = find_process(pid);
+    if(WIFEXITED(status) || WIFSIGNALED(status)) {
+      p->completed = true;
+      fflush(stdout);
+    }
+    else if (WIFSTOPPED(status)) {
+      p->stopped = true;
+      j->notified = true;
+      //j->bg = true;
+    }
+
+    if(job_is_stopped(j) && isatty(STDIN_FILENO)) {
+      seize_tty(getpid());
+      break;
+    }
+  }
 }
 
 job_t *find_job(int job_id) {
   job_t *jobs = jobs_list;
+
   while(jobs != NULL) {
     if(jobs -> pgid == job_id) {
       return jobs;
@@ -177,15 +201,41 @@ job_t *find_job(int job_id) {
   return NULL;
 }
 
+job_t *getLastSuspendedJob() {
+  job_t *jobs = jobs_list;
+  job_t* lastSuspended = NULL;
+
+  while(jobs != NULL) {
+
+    if(jobs->notified) {
+      lastSuspended = jobs;
+    }
+    jobs = jobs->next;
+  }
+  return lastSuspended;
+}
+
+process_t *find_process(int pid) {
+  job_t *jobs = jobs_list;
+  while(jobs != NULL) {
+    process_t *process = jobs -> first_process;
+    while(process != NULL) {
+      if(process -> pid == pid)
+        return process;
+      process = process -> next;
+    }
+    jobs = jobs -> next;
+  }
+
+  return NULL;
+}
+
 /* 
  * builtin_cmd - If the user has typed a built-in command then execute
  * it immediately.  
  */
 bool builtin_cmd(job_t *last_job, int argc, char **argv) 
 {
-  printf("Checking if built in command \n");
-  /* check whether the cmd is a built in command*/
-
   if (!strcmp(argv[0], "quit")) {
     /* Your code here */
     exit(EXIT_SUCCESS);
@@ -195,16 +245,18 @@ bool builtin_cmd(job_t *last_job, int argc, char **argv)
     return true;
   }
   else if (!strcmp("jobs", argv[0])) {
+
     job_t *job = jobs_list;
     int job_count = 1;
 
     while(job != NULL) {
-      printf("[%d]", job_count);
+      printf("[%d] (%d)", job_count, job->pgid);
 
-      if(job -> notified){
-        printf(" Job stopped");
-      }
-      else {
+      if(job_is_completed(job)) {
+        printf(" Job completed: ");
+      } else if(job_is_stopped(job)){
+        printf(" Job stopped: ");
+      } else {
         printf(" Job running in");
         if(job -> bg) {
           printf(" bg: ");
@@ -218,6 +270,28 @@ bool builtin_cmd(job_t *last_job, int argc, char **argv)
       job_count++;
       job = job -> next;
     }
+
+    // remove completed jobs
+    job = jobs_list;
+    job_t *prev;
+    while(job != NULL) {
+      if(job_is_completed(job)) {
+        if(job == jobs_list) {
+          job = jobs_list -> next;          
+          jobs_list = job;
+        }
+        else {
+          prev -> next = job -> next;
+          free_job(prev);
+          job = prev -> next;
+        }
+      }
+      else {
+        prev = job;
+        job = job->next;
+      }
+    }
+
 
     fflush(stdout);
     return true;
@@ -256,20 +330,25 @@ bool builtin_cmd(job_t *last_job, int argc, char **argv)
 
     // if no arguments specified, continue last job stopped
     if(argc == 1) {
-      job = find_job(-1);
+      job = getLastSuspendedJob();
+      job_id = job->pgid;
     }
     else {
+      printf("getting job\n");
       job_id = atoi(argv[1]);
       job = find_job(job_id);
     }
 
-    fflush(stdout);
+    //fflush(stdout);
     continue_job(job);
     job -> bg = false;
     job -> notified = false;
+    process_t* p = find_process(job->pgid);
+    p->stopped = false;
+
     seize_tty(job_id);
 
-    wait_for_fg(job);
+    wait_pid_help(job, true);
 
     return true;
   }
@@ -291,6 +370,7 @@ void add_new_job(job_t *new_job) {
     }
     curr -> next = new_job;
   }
+  new_job->next = NULL;
 }
 
 void call_getcwd ()
@@ -331,6 +411,7 @@ int main()
             /* spawn_job(j,true) */
             /* else */
             /* spawn_job(j,false) */
+
 
     job_t * current_job = j;
     while (current_job != NULL) {
