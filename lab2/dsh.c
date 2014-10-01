@@ -66,6 +66,8 @@ void new_child(job_t *j, process_t *p, bool fg)
   int prev_fd[2];
 
   add_new_job(j);
+  //set_child_pgid(j, j->first_process); //We need to set the pgid of j to something other than -1 here
+  printf("%d(Launched): %s\n", j->pgid, j->commandinfo);
 
   for(p = j->first_process; p; p = p->next) {
 
@@ -85,7 +87,7 @@ void new_child(job_t *j, process_t *p, bool fg)
       case 0: /* child process  */
         p->pid = getpid();      
         /* YOUR CODE HERE?  Child-side code for new process. */
-        print_job(j);
+        //print_job(j);
 
         //set_child_pgid(j, p);
         new_child(j, p, fg);
@@ -187,6 +189,7 @@ void wait_pid_help(job_t *j, bool fg) {
       break;
     }
   }
+  //perror("Bad waitpid?");
 }
 
 job_t *find_job(int job_id) {
@@ -250,10 +253,10 @@ bool builtin_cmd(job_t *last_job, int argc, char **argv)
     int job_count = 1;
 
     while(job != NULL) {
-      printf("[%d] (%d)", job_count, job->pgid);
+      printf("%d", job->pgid);
 
       if(job_is_completed(job)) {
-        printf(" Job completed: ");
+        printf("(Completed): ");
       } else if(job_is_stopped(job)){
         printf(" Job stopped: ");
       } else {
@@ -385,7 +388,12 @@ void call_getcwd ()
 char* promptmsg() 
 {
   /* Modify this to include pid */
-  return "dsh$ ";
+  char prompt[20];
+  char pid[10];
+  strcpy(prompt,"dsh-");
+  snprintf(pid, 10,"%d",(int)getpid());
+  strcat(prompt, pid);
+  return strcat(prompt,"$ ");
 }
 
 int main() 
