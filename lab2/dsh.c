@@ -127,7 +127,7 @@ void new_child(job_t *j, process_t *p, bool fg)
           execvp(p->argv[0], p->argv);          
         }
         
-        //perror("New child should have done an exec");
+        perror("New child should have done an exec");
         exit(EXIT_FAILURE);  /* NOT REACHED */
         break;    /* NOT REACHED */
 
@@ -166,7 +166,7 @@ void wait_pid_help(job_t *j, bool fg) {
   int status, pid;
   while((pid = waitpid(-1, &status, WUNTRACED)) > 0) {
     process_t *p = find_process(pid);
-    if(WIFEXITED(status)) {
+    if(WIFSIGNALED(status)) {
       p->completed = true;
       fflush(stdout);
     }
@@ -177,7 +177,7 @@ void wait_pid_help(job_t *j, bool fg) {
     }
 
     if(job_is_stopped(j) && isatty(STDIN_FILENO)) {
-      seize_tty(getpid());
+        seize_tty(getpid());
       break;
     }
   }
@@ -328,12 +328,12 @@ bool builtin_cmd(job_t *last_job, int argc, char **argv)
       job_id = job->pgid;
     }
     else {
-      printf("getting job\n");
+      //printf("getting job\n");
       job_id = atoi(argv[1]);
       job = find_job(job_id);
     }
 
-    //fflush(stdout);
+    fflush(stdout);
     continue_job(job);
     job -> bg = false;
     job -> notified = false;
@@ -411,9 +411,10 @@ int main()
     while (current_job != NULL) {
       int argc = current_job->first_process->argc;
       char** argv = current_job->first_process->argv;
-      if (!builtin_cmd(current_job, argc, argv)) {
+      if (!builtin_cmd(current_job, argc, argv)) {        
         spawn_job(current_job, !(current_job->bg));
       }
+      // printf("test\n");
       current_job = current_job->next;
     }
 
