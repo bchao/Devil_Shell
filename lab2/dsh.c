@@ -160,7 +160,9 @@ void new_child(job_t *j, process_t *p, bool fg)
         /* YOUR CODE HERE?  Parent-side code for new process.  */
     }
   }
+  //printf("about to wait");
   wait_pid_help(j, fg);
+  //printf("done waiting");
 }
 
 /* Sends SIGCONT signal to wake up the blocked job */
@@ -397,7 +399,7 @@ char* promptmsg()
   char prompt[20];
   char pid[10];
   strcpy(prompt,"dsh-");
-  snprintf(pid, 10,"%d",(int)getpid());
+  snprintf(pid, 10, "%d", getpid());
   strcat(prompt, pid);
   return strcat(prompt,"$ ");
 }
@@ -429,11 +431,13 @@ int main()
 
     job_t * current_job = j;
     while (current_job != NULL) {
+     // printf("beginning of loop");
       int argc = current_job->first_process->argc;
       char** argv = current_job->first_process->argv;
       if (!builtin_cmd(current_job, argc, argv)) {
         spawn_job(current_job, !(current_job->bg));
       }
+      //printf("about to increment job");
       current_job = current_job->next;
     }
 
