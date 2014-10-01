@@ -66,8 +66,7 @@ void new_child(job_t *j, process_t *p, bool fg)
   int prev_fd[2];
 
   add_new_job(j);
-  //set_child_pgid(j, j->first_process); //We need to set the pgid of j to something other than -1 here
-  printf("%d(Launched): %s\n", j->pgid, j->commandinfo);
+  
 
   for(p = j->first_process; p; p = p->next) {
 
@@ -147,6 +146,8 @@ void new_child(job_t *j, process_t *p, bool fg)
         p->pid = pid;
         set_child_pgid(j, p);
 
+        if (p->pid == j->pgid) printf("%d(Launched): %s\n", j->pgid, j->commandinfo);
+
         if (p != j->first_process) {
           close(prev_fd[0]);
           close(prev_fd[1]);
@@ -174,13 +175,17 @@ void wait_pid_help(job_t *j, bool fg) {
   int status, pid;
   while((pid = waitpid(-1, &status, WUNTRACED)) > 0) {
     process_t *p = find_process(pid);
-    if(WIFEXITED(status) || WIFSIGNALED(status)) {
+    if(WIFEXITED(status)) { //ctrl d
       p->completed = true;
       fflush(stdout);
     }
-    else if (WIFSTOPPED(status)) {
+    else if (WIFSIGNALED(status)) { //ctrl c
+      p->completed = true;
+      fflush(stdout);
+    }
+    else if (WIFSTOPPED(status)) { //ctrl z
       p->stopped = true;
-      j->notified = true;
+      //j->notified = true;
       //j->bg = true;
     }
 
@@ -258,14 +263,14 @@ bool builtin_cmd(job_t *last_job, int argc, char **argv)
       if(job_is_completed(job)) {
         printf("(Completed): ");
       } else if(job_is_stopped(job)){
-        printf(" Job stopped: ");
+        printf("(Stopped): ");
       } else {
-        printf(" Job running in");
+        printf("(Job running in");
         if(job -> bg) {
-          printf(" bg: ");
+          printf(" bg): ");
         }
         else {
-          printf(" fg: ");
+          printf(" fg): ");
         }
       }
 
@@ -281,15 +286,16 @@ bool builtin_cmd(job_t *last_job, int argc, char **argv)
       if(job_is_completed(job)) {
         if(job == jobs_list) {
           job = jobs_list -> next;          
+          free_job(jobs_list);
           jobs_list = job;
         }
         else {
           prev -> next = job -> next;
-          free_job(prev);
+          free_job(job);
           job = prev -> next;
         }
       }
-      else {
+      else{
         prev = job;
         job = job->next;
       }

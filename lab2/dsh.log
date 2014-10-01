@@ -1,1 +1,10 @@
-14847(Launched): ls | wc -l
+28920(Launched): ls
+28921(Launched): ls
+28922(Launched):  ls
+28920(Completed): ls
+28921(Completed): ls
+28922(Completed):  ls
+28952(Launched): pwd
+28953(Launched):  pwd
+28954(Launched):  ls
+29907(Launched): ls
