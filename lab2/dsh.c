@@ -397,7 +397,7 @@ char* promptmsg()
   char prompt[20];
   char pid[10];
   strcpy(prompt,"dsh-");
-  snprintf(pid, 10,"%d",(int)getpid());
+  snprintf(pid, 10,"%d",getpid());
   strcat(prompt, pid);
   return strcat(prompt,"$ ");
 }
