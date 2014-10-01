@@ -8,6 +8,7 @@ void call_getcwd();
 void add_new_job(job_t *new_job);
 process_t *find_process(int pid);
 job_t *find_job(int job_id);
+job_t* getLastSuspendedJob();
 void wait_pid_help(job_t *j, bool fg);
 bool free_job(job_t *j);
 
@@ -133,6 +134,7 @@ void new_child(job_t *j, process_t *p, bool fg)
         }
 
         perror("New child should have done an exec");
+        
         exit(EXIT_FAILURE);  /* NOT REACHED */
         break;    /* NOT REACHED */
 
@@ -183,7 +185,7 @@ void wait_pid_help(job_t *j, bool fg) {
     else if (WIFSTOPPED(status)) {
       p->stopped = true;
       j->notified = true;
-      j->bg = true;
+      //j->bg = true;
     }
 
     if(job_is_stopped(j) && isatty(STDIN_FILENO)) {
@@ -195,6 +197,7 @@ void wait_pid_help(job_t *j, bool fg) {
 
 job_t *find_job(int job_id) {
   job_t *jobs = jobs_list;
+
   while(jobs != NULL) {
     if(jobs -> pgid == job_id) {
       return jobs;
@@ -202,6 +205,20 @@ job_t *find_job(int job_id) {
     jobs = jobs -> next;
   }
   return NULL;
+}
+
+job_t *getLastSuspendedJob() {
+  job_t *jobs = jobs_list;
+  job_t* lastSuspended = NULL;
+
+  while(jobs != NULL) {
+
+    if(jobs->notified) {
+      lastSuspended = jobs;
+    }
+    jobs = jobs->next;
+  }
+  return lastSuspended;
 }
 
 process_t *find_process(int pid) {
@@ -239,15 +256,13 @@ bool builtin_cmd(job_t *last_job, int argc, char **argv)
     int job_count = 1;
 
     while(job != NULL) {
-      printf("[%d]", job_count);
+      printf("[%d] (%d)", job_count, job->pgid);
 
-      if(job_is_stopped(job)){
-        printf(" Job stopped: ");
-      }
       if(job_is_completed(job)) {
         printf(" Job completed: ");
-      }
-      else {
+      } else if(job_is_stopped(job)){
+        printf(" Job stopped: ");
+      } else {
         printf(" Job running in");
         if(job -> bg) {
           printf(" bg: ");
@@ -321,17 +336,22 @@ bool builtin_cmd(job_t *last_job, int argc, char **argv)
 
     // if no arguments specified, continue last job stopped
     if(argc == 1) {
-      job = find_job(-1);
+      job = getLastSuspendedJob();
+      job_id = job->pgid;
     }
     else {
+      printf("getting job\n");
       job_id = atoi(argv[1]);
       job = find_job(job_id);
     }
 
-    fflush(stdout);
+    //fflush(stdout);
     continue_job(job);
     job -> bg = false;
     job -> notified = false;
+    process_t* p = find_process(job->pgid);
+    p->stopped = false;
+
     seize_tty(job_id);
 
     wait_pid_help(job, true);
