@@ -323,10 +323,21 @@ bool builtin_cmd(job_t *last_job, int argc, char **argv)
     return true;
   }
   else if (!strcmp("bg", argv[0])) {
-    int job_id = atoi(argv[1]);
-    job_t *job = find_job(job_id);
+    // int job_id = atoi(argv[1]);
+    // job_t *job = find_job(job_id);
 
-    fflush(stdout);
+    if(argc == 1) {
+      job = getLastSuspendedJob();
+      job_id = job->pgid;
+    }
+    else {
+      printf("putting job into background\n");
+      job_id = atoi(argv[1]);
+      job = find_job(job_id);
+    }
+
+
+    // fflush(stdout);
     continue_job(job);
     job -> bg = true;
     job -> notified = false;
