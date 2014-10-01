@@ -171,7 +171,7 @@ void wait_pid_help(job_t *j, bool fg) {
   int status, pid;
   while((pid = waitpid(-1, &status, WUNTRACED)) > 0) {
     process_t *p = find_process(pid);
-    if(WIFEXITED(status)) {
+    if(WIFEXITED(status) || WIFSIGNALED(status)) {
       p->completed = true;
       fflush(stdout);
     }
