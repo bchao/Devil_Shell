@@ -146,7 +146,6 @@ void new_child(job_t *j, process_t *p, bool fg)
 
         p->pid = pid;
         set_child_pgid(j, p);
-
         // if (p != j->first_process) {
         //   close(prev_fd[0]);
         //   close(prev_fd[1]);
