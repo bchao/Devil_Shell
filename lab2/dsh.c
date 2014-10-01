@@ -75,6 +75,7 @@ void new_child(job_t *j, process_t *p, bool fg)
     if (p->next != NULL) {
       pipe(next_fd);
     }
+    
 
     switch (pid = fork()) {
       case -1: /* fork failure */
@@ -413,6 +414,13 @@ int main()
 
     job_t * current_job = j;
     while (current_job != NULL) {
+      //printf("hello\n");
+      printf("%s\n", current_job->commandinfo);
+      current_job = current_job->next;
+    }
+    current_job = j;
+    while (current_job != NULL) {
+      //printf("hello\n");
       int argc = current_job->first_process->argc;
       char** argv = current_job->first_process->argv;
       if (!builtin_cmd(current_job, argc, argv)) {        
