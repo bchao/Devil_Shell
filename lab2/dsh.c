@@ -8,10 +8,11 @@ void call_getcwd();
 void add_new_job(job_t *new_job);
 process_t *find_process(int pid);
 job_t *find_job(int job_id);
-job_t* getLastSuspendedJob();
+//job_t* getLastSuspendedJob();
 void wait_pid_help(job_t *j, bool fg);
 bool free_job(job_t *j);
 
+job_t *last_suspended_job;
 job_t *jobs_list = NULL;
 
 /* Sets the process group id for a given job and process */
@@ -66,7 +67,7 @@ void new_child(job_t *j, process_t *p, bool fg)
   int prev_fd[2];
 
   add_new_job(j);
-  
+
   for(p = j->first_process; p; p = p->next) {
 
     /* YOUR CODE HERE? */
@@ -180,6 +181,7 @@ void wait_pid_help(job_t *j, bool fg) {
     }
     else if (WIFSTOPPED(status)) { //ctrl z
       p->stopped = true;
+      last_suspended_job = j;
       //j->notified = true;
       //j->bg = true;
     }
@@ -204,19 +206,19 @@ job_t *find_job(int job_id) {
   return NULL;
 }
 
-job_t *getLastSuspendedJob() {
-  job_t *jobs = jobs_list;
-  job_t* lastSuspended = NULL;
+// job_t *getLastSuspendedJob() {
+//   job_t *jobs = jobs_list;
+//   job_t* lastSuspended = NULL;
 
-  while(jobs != NULL) {
+//   while(jobs != NULL) {
 
-    if(jobs->notified) {
-      lastSuspended = jobs;
-    }
-    jobs = jobs->next;
-  }
-  return lastSuspended;
-}
+//     if(jobs->notified) {
+//       lastSuspended = jobs;
+//     }
+//     jobs = jobs->next;
+//   }
+//   return lastSuspended;
+// }
 
 process_t *find_process(int pid) {
   job_t *jobs = jobs_list;
@@ -260,13 +262,7 @@ bool builtin_cmd(job_t *last_job, int argc, char **argv)
       } else if(job_is_stopped(job)){
         printf("(Stopped): ");
       } else {
-        printf("(Job running in");
-        if(job -> bg) {
-          printf(" bg): ");
-        }
-        else {
-          printf(" fg): ");
-        }
+        printf("(Running):");
       }
 
       printf("%s\n", job -> commandinfo);
@@ -334,8 +330,10 @@ bool builtin_cmd(job_t *last_job, int argc, char **argv)
 
     // if no arguments specified, continue last job stopped
     if(argc == 1) {
-      job = getLastSuspendedJob();
+      job = last_suspended_job;
       job_id = job->pgid;
+      // job = getLastSuspendedJob();
+      // job_id = job->pgid;
     }
     else {
       printf("getting job\n");
@@ -426,19 +424,23 @@ int main()
             /* else */
             /* spawn_job(j,false) */
 
-
     job_t * current_job = j;
+    job_t * new_job = j;
 
     while (current_job != NULL) {
-      int argc = current_job->first_process->argc;
-      char** argv = current_job->first_process->argv;
-      if (!builtin_cmd(current_job, argc, argv)) {
-        printf("*****%s\n",current_job->commandinfo);
-        printf("*****%d\n",current_job->pgid);
-        spawn_job(current_job, !(current_job->bg));
+      new_job = current_job;
+      current_job = current_job -> next;
+      new_job->next = NULL;
+      
+      int argc = new_job->first_process->argc;
+      char** argv = new_job->first_process->argv;
+      if (!builtin_cmd(new_job, argc, argv)) {
+        // printf("*****%s\n",current_job->commandinfo);
+        // printf("*****%d\n",current_job->pgid);
+        spawn_job(new_job, !(new_job->bg));
       }
+
       // printf("%d(Launched): %s\n", current_job->pgid, current_job->commandinfo);
-      current_job = current_job->next;
     }
 
     // job_t * cj = j;
