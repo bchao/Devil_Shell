@@ -252,6 +252,13 @@ bool builtin_cmd(job_t *last_job, int argc, char **argv)
     edit_background_ps();
 
     job_t *job = jobs_list;
+    //printf("Last suspended: %d\n", get_last_suspended(first_job)->pgid);
+    while (job != NULL)
+    {
+      printf("%d\n", job->pgid);
+      job = job->next;
+    }
+    job = jobs_list;
     int job_count = 1;
 
     while(job != NULL) {
@@ -279,6 +286,7 @@ bool builtin_cmd(job_t *last_job, int argc, char **argv)
           job = jobs_list -> next;          
           free_job(jobs_list);
           jobs_list = job;
+          first_job = jobs_list;
         }
         else {
           prev -> next = job -> next;
@@ -339,8 +347,8 @@ bool builtin_cmd(job_t *last_job, int argc, char **argv)
 
     // if no arguments specified, continue last job stopped
     if(argc == 1) {
-      //printf("Last suspended: %d", get_last_suspended(first_job)->pgid);
       job = get_last_suspended(first_job);
+      if (job == NULL) return true;
       job_id = job->pgid;
     }
     else {
@@ -367,10 +375,10 @@ job_t* get_last_suspended(job_t *curr){
   job_t* last_suspended;
   while(curr != NULL) {
     if (job_is_stopped(curr)) {
-      printf("Stopped: %d\n", curr->pgid);
+      //printf("Stopped: %d\n", curr->pgid);
       last_suspended = curr;
     }
-    else printf("Not Stopped: %d\n", curr->pgid);
+    //else printf("Not Stopped: %d\n", curr->pgid);
     curr = curr->next;
   }
   return last_suspended;
@@ -444,9 +452,6 @@ int main()
       char** argv = new_job->first_process->argv;
       if (!builtin_cmd(new_job, argc, argv)) {
         spawn_job(new_job, !(new_job->bg));
-      }
-      else{
-        printf("%d\n", get_last_suspended(first_job)->pgid);
       }
     }
   }
