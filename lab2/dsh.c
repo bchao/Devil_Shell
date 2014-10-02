@@ -11,8 +11,10 @@ process_t *find_process(int pid);
 job_t *find_job(int job_id);
 void wait_pid_help(job_t *j, bool fg);
 bool free_job(job_t *j);
+job_t *get_last_suspended(job_t* curr);
 
-job_t *last_suspended_job;
+job_t *first_job;
+bool first = true;
 job_t *jobs_list = NULL;
 
 /* Sets the process group id for a given job and process */
@@ -85,9 +87,6 @@ void new_child(job_t *j, process_t *p, bool fg)
       case 0: /* child process  */
         p->pid = getpid();      
         /* YOUR CODE HERE?  Child-side code for new process. */
-        //print_job(j);
-
-        //set_child_pgid(j, p);
         new_child(j, p, fg);
 
         // piping
@@ -126,7 +125,6 @@ void new_child(job_t *j, process_t *p, bool fg)
           execvp(p->argv[0], p->argv);
           close(newOutFD);
         } else {
-          // printf("--------\n\n");
           execvp(p->argv[0], p->argv);          
         }
 
@@ -147,11 +145,8 @@ void new_child(job_t *j, process_t *p, bool fg)
           close(prev_fd[0]);
           close(prev_fd[1]);
         }
-
-        //if (p->next != NULL) {
           prev_fd[0] = next_fd[0];
           prev_fd[1] = next_fd[1];
-        //}
         /* YOUR CODE HERE?  Parent-side code for new process.  */
     }
   }
@@ -181,7 +176,6 @@ void wait_pid_help(job_t *j, bool fg) {
       }
       else if (WIFSTOPPED(status)) { //ctrl z
         p->stopped = true;
-        last_suspended_job = j;
         j->notified = true;
         j->bg = true;
       }
@@ -192,7 +186,6 @@ void wait_pid_help(job_t *j, bool fg) {
       }
     }
   }
-  //perror("Bad waitpid?");
 }
 
 job_t *find_job(int job_id) {
@@ -326,11 +319,9 @@ bool builtin_cmd(job_t *last_job, int argc, char **argv)
     job_t *job;
 
     if(argc == 1) {
-      job = last_suspended_job;
-      job_id = job->pgid;
+      return true;
     }
     else {
-      printf("running job in background\n");
       job_id = atoi(argv[1]);
       job = find_job(job_id);
     }
@@ -349,13 +340,13 @@ bool builtin_cmd(job_t *last_job, int argc, char **argv)
 
     // if no arguments specified, continue last job stopped
     if(argc == 1) {
-      job = last_suspended_job;
+      job = get_last_suspended(first_job);
       job_id = job->pgid;
     }
     else {
-      printf("getting job\n");
       job_id = atoi(argv[1]);
       job = find_job(job_id);
+      if (job == NULL) return true;
     }
 
     continue_job(job);
@@ -370,6 +361,15 @@ bool builtin_cmd(job_t *last_job, int argc, char **argv)
     return true;
   }
   return false;       /* not a builtin command */
+}
+
+job_t* get_last_suspended(job_t *curr){
+  job_t* last_suspended;
+  while(curr != NULL) {
+    if (job_is_stopped(curr)) last_suspended = curr;
+    curr = curr->next;
+  }
+  return last_suspended;
 }
 
 void add_new_job(job_t *new_job) {
@@ -424,7 +424,10 @@ int main()
       }
       continue; /* NOOP; user entered return or spaces with return */
     }
-
+    if (first) {
+      first_job = j;
+      first = false;
+    }
     job_t * current_job = j;
     job_t * new_job = j;
 
@@ -438,7 +441,6 @@ int main()
       if (!builtin_cmd(new_job, argc, argv)) {
         spawn_job(new_job, !(new_job->bg));
       }
-
     }
   }
 }
