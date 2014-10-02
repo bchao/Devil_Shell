@@ -67,7 +67,6 @@ void new_child(job_t *j, process_t *p, bool fg)
 
   add_new_job(j);
   
-
   for(p = j->first_process; p; p = p->next) {
 
     /* YOUR CODE HERE? */
@@ -127,6 +126,7 @@ void new_child(job_t *j, process_t *p, bool fg)
           execvp(p->argv[0], p->argv);
           close(newOutFD);
         } else {
+          // printf("--------\n\n");
           execvp(p->argv[0], p->argv);          
         }
 
@@ -137,11 +137,6 @@ void new_child(job_t *j, process_t *p, bool fg)
 
       default: /* parent */
         /* establish child process group */
-
-        // close(next_fd[1]);
-        // if (p->next == NULL) {
-        //   close(next_fd[0]);
-        // }
 
         p->pid = pid;
         set_child_pgid(j, p);
@@ -369,6 +364,12 @@ void add_new_job(job_t *new_job) {
   if(new_job == NULL) {
     return;
   }
+
+  // job_t *j = new_job;
+  // if(j == last_job) {
+  //   j->next = NULL;
+  // }
+
   if(jobs_list == NULL) {
     jobs_list = new_job;
   }
@@ -379,7 +380,6 @@ void add_new_job(job_t *new_job) {
     }
     curr -> next = new_job;
   }
-  new_job->next = NULL;
 }
 
 void call_getcwd ()
@@ -428,14 +428,24 @@ int main()
 
 
     job_t * current_job = j;
+
     while (current_job != NULL) {
       int argc = current_job->first_process->argc;
       char** argv = current_job->first_process->argv;
       if (!builtin_cmd(current_job, argc, argv)) {
+        printf("*****%s\n",current_job->commandinfo);
+        printf("*****%d\n",current_job->pgid);
         spawn_job(current_job, !(current_job->bg));
       }
+      // printf("%d(Launched): %s\n", current_job->pgid, current_job->commandinfo);
       current_job = current_job->next;
     }
+
+    // job_t * cj = j;
+    // while(cj != NULL) {
+    //   printf("-----%d: %s\n", cj->pgid, cj->commandinfo);
+    //   cj = cj->next;
+    // }
 
         /* Only for debugging purposes to show parser output; turn off in the
          * final code */
