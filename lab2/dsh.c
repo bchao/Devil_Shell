@@ -4,11 +4,11 @@ void seize_tty(pid_t callingprocess_pgid); /* Grab control of the terminal for t
 void continue_job(job_t *j); /* resume a stopped job */
 void spawn_job(job_t *j, bool fg); /* spawn a new job */
 void call_getcwd();
+void edit_background_ps();
 
 void add_new_job(job_t *new_job);
 process_t *find_process(int pid);
 job_t *find_job(int job_id);
-//job_t* getLastSuspendedJob();
 void wait_pid_help(job_t *j, bool fg);
 bool free_job(job_t *j);
 
@@ -42,10 +42,9 @@ void new_child(job_t *j, process_t *p, bool fg)
 
   /* also establish child process group in child to avoid race (if parent has not done it yet). */
   set_child_pgid(j, p);
-
-  if(fg) // if fg is set
+  if(fg) {// if fg is set
     seize_tty(j->pgid); // assign the terminal
-
+  }
   /* Set the handling for job control signals back to the default. */
   signal(SIGTTOU, SIG_DFL);
 }
@@ -168,27 +167,29 @@ void continue_job(job_t *j)
 
 /* Wait for child in foreground to finish and exit */
 void wait_pid_help(job_t *j, bool fg) {
-  int status, pid;
-  while((pid = waitpid(-1, &status, WUNTRACED)) > 0) {
-    process_t *p = find_process(pid);
-    if(WIFEXITED(status)) { //ctrl d
-      p->completed = true;
-      fflush(stdout);
-    }
-    else if (WIFSIGNALED(status)) { //ctrl c
-      p->completed = true;
-      fflush(stdout);
-    }
-    else if (WIFSTOPPED(status)) { //ctrl z
-      p->stopped = true;
-      last_suspended_job = j;
-      //j->notified = true;
-      //j->bg = true;
-    }
+  if (fg) {
+    int status, pid;
+    while((pid = waitpid(-1, &status, WUNTRACED)) > 0) {
+      process_t *p = find_process(pid);
+      if(WIFEXITED(status)) { //ctrl d
+        p->completed = true;
+        fflush(stdout);
+      }
+      else if (WIFSIGNALED(status)) { //ctrl c
+        p->completed = true;
+        fflush(stdout);
+      }
+      else if (WIFSTOPPED(status)) { //ctrl z
+        p->stopped = true;
+        last_suspended_job = j;
+        j->notified = true;
+        j->bg = true;
+      }
 
-    if(job_is_stopped(j) && isatty(STDIN_FILENO)) {
-      seize_tty(getpid());
-      break;
+      if(job_is_stopped(j) && isatty(STDIN_FILENO)) {
+        seize_tty(getpid());
+        break;
+      }
     }
   }
   //perror("Bad waitpid?");
@@ -206,20 +207,6 @@ job_t *find_job(int job_id) {
   return NULL;
 }
 
-// job_t *getLastSuspendedJob() {
-//   job_t *jobs = jobs_list;
-//   job_t* lastSuspended = NULL;
-
-//   while(jobs != NULL) {
-
-//     if(jobs->notified) {
-//       lastSuspended = jobs;
-//     }
-//     jobs = jobs->next;
-//   }
-//   return lastSuspended;
-// }
-
 process_t *find_process(int pid) {
   job_t *jobs = jobs_list;
   while(jobs != NULL) {
@@ -235,6 +222,25 @@ process_t *find_process(int pid) {
   return NULL;
 }
 
+void edit_background_ps() {
+  int pid, status;
+  while ((pid = waitpid(WAIT_ANY, &status, WNOHANG | WUNTRACED)) > 0) {
+    process_t *p = find_process(pid);
+    p->status = status;
+    if (WIFEXITED(status)) {
+        p->completed = true; 
+    }
+    if (WIFSTOPPED(status)) { 
+      p->stopped = true; 
+    }
+    if (WIFCONTINUED(status)) { 
+      p->stopped = false; 
+    }
+    if (WIFSIGNALED(status)) { 
+      p->completed = true; 
+    }
+  }
+}
 /* 
  * builtin_cmd - If the user has typed a built-in command then execute
  * it immediately.  
@@ -250,6 +256,8 @@ bool builtin_cmd(job_t *last_job, int argc, char **argv)
     return true;
   }
   else if (!strcmp("jobs", argv[0])) {
+
+    edit_background_ps();
 
     job_t *job = jobs_list;
     int job_count = 1;
@@ -314,10 +322,19 @@ bool builtin_cmd(job_t *last_job, int argc, char **argv)
     return true;
   }
   else if (!strcmp("bg", argv[0])) {
-    int job_id = atoi(argv[1]);
-    job_t *job = find_job(job_id);
+    int job_id;
+    job_t *job;
 
-    fflush(stdout);
+    if(argc == 1) {
+      job = last_suspended_job;
+      job_id = job->pgid;
+    }
+    else {
+      printf("running job in background\n");
+      job_id = atoi(argv[1]);
+      job = find_job(job_id);
+    }
+
     continue_job(job);
     job -> bg = true;
     job -> notified = false;
@@ -332,8 +349,6 @@ bool builtin_cmd(job_t *last_job, int argc, char **argv)
     if(argc == 1) {
       job = last_suspended_job;
       job_id = job->pgid;
-      // job = getLastSuspendedJob();
-      // job_id = job->pgid;
     }
     else {
       printf("getting job\n");
@@ -341,7 +356,6 @@ bool builtin_cmd(job_t *last_job, int argc, char **argv)
       job = find_job(job_id);
     }
 
-    //fflush(stdout);
     continue_job(job);
     job -> bg = false;
     job -> notified = false;
@@ -349,12 +363,10 @@ bool builtin_cmd(job_t *last_job, int argc, char **argv)
     p->stopped = false;
 
     seize_tty(job_id);
-
     wait_pid_help(job, true);
 
     return true;
   }
-
   return false;       /* not a builtin command */
 }
 
@@ -362,11 +374,6 @@ void add_new_job(job_t *new_job) {
   if(new_job == NULL) {
     return;
   }
-
-  // job_t *j = new_job;
-  // if(j == last_job) {
-  //   j->next = NULL;
-  // }
 
   if(jobs_list == NULL) {
     jobs_list = new_job;
@@ -415,14 +422,6 @@ int main()
       }
       continue; /* NOOP; user entered return or spaces with return */
     }
-        /* Your code goes here */
-        /* You need to loop through jobs list since a command line can contain ;*/
-        /* Check for built-in commands */
-        /* If not built-in */
-            /* If job j runs in foreground */
-            /* spawn_job(j,true) */
-            /* else */
-            /* spawn_job(j,false) */
 
     job_t * current_job = j;
     job_t * new_job = j;
@@ -435,22 +434,9 @@ int main()
       int argc = new_job->first_process->argc;
       char** argv = new_job->first_process->argv;
       if (!builtin_cmd(new_job, argc, argv)) {
-        // printf("*****%s\n",current_job->commandinfo);
-        // printf("*****%d\n",current_job->pgid);
         spawn_job(new_job, !(new_job->bg));
       }
 
-      // printf("%d(Launched): %s\n", current_job->pgid, current_job->commandinfo);
     }
-
-    // job_t * cj = j;
-    // while(cj != NULL) {
-    //   printf("-----%d: %s\n", cj->pgid, cj->commandinfo);
-    //   cj = cj->next;
-    // }
-
-        /* Only for debugging purposes to show parser output; turn off in the
-         * final code */
-   // if(PRINT_INFO) print_job(j);    
   }
 }
