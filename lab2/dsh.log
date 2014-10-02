@@ -1,0 +1,22 @@
+<<<<<<< HEAD
+18197(Launched): sleep 1000
+18197(Running): sleep 1000
+No job with pgid 0 is active
+18197(Running): sleep 1000
+18197(Stopped): sleep 1000
+18197: Terminated by signal 2.
+18197(Completed): sleep 1000
+=======
+4194(Launched): cat
+4194(Stopped): cat
+4194: Terminated by signal 2.
+4409(Launched): ls
+4412(Launched): pwd
+4418(Launched): pwd
+4465(Launched): sleep 1000
+4194(Completed): cat
+4409(Completed): ls
+4412(Completed): pwd
+4418(Completed): pwd
+4465(Running): sleep 1000
+>>>>>>> 5fdc8f8cfc4fd12cb2472384f914b51c6842f1c2
