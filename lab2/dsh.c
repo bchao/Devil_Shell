@@ -191,7 +191,7 @@ void wait_pid_help(job_t *j, bool fg) {
     }
 
     if(job_is_stopped(j) && isatty(STDIN_FILENO)) {
-        seize_tty(getpid());
+      seize_tty(getpid());
       break;
     }
   }
@@ -398,7 +398,7 @@ char* promptmsg()
   char prompt[20];
   char pid[10];
   strcpy(prompt,"dsh-");
-  snprintf(pid, 10,"%d",(int)getpid());
+  snprintf(pid, 10,"%d",getpid());
   strcat(prompt, pid);
   return strcat(prompt,"$ ");
 }
@@ -439,10 +439,9 @@ int main()
       //printf("hello\n");
       int argc = current_job->first_process->argc;
       char** argv = current_job->first_process->argv;
-      if (!builtin_cmd(current_job, argc, argv)) {        
+      if (!builtin_cmd(current_job, argc, argv)) {
         spawn_job(current_job, !(current_job->bg));
       }
-      // printf("test\n");
       current_job = current_job->next;
     }
 
