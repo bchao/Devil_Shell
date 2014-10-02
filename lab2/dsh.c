@@ -37,7 +37,6 @@ void new_child(job_t *j, process_t *p, bool fg)
   * group the terminal, if appropriate.  This has to be done both by
   * the dsh and in the individual child processes because of
   * potential race conditions.  
-  * hey
   * */
 
   p->pid = getpid();
@@ -340,6 +339,7 @@ bool builtin_cmd(job_t *last_job, int argc, char **argv)
 
     // if no arguments specified, continue last job stopped
     if(argc == 1) {
+      //printf("Last suspended: %d", get_last_suspended(first_job)->pgid);
       job = get_last_suspended(first_job);
       job_id = job->pgid;
     }
@@ -366,7 +366,11 @@ bool builtin_cmd(job_t *last_job, int argc, char **argv)
 job_t* get_last_suspended(job_t *curr){
   job_t* last_suspended;
   while(curr != NULL) {
-    if (job_is_stopped(curr)) last_suspended = curr;
+    if (job_is_stopped(curr)) {
+      printf("Stopped: %d\n", curr->pgid);
+      last_suspended = curr;
+    }
+    else printf("Not Stopped: %d\n", curr->pgid);
     curr = curr->next;
   }
   return last_suspended;
@@ -440,6 +444,9 @@ int main()
       char** argv = new_job->first_process->argv;
       if (!builtin_cmd(new_job, argc, argv)) {
         spawn_job(new_job, !(new_job->bg));
+      }
+      else{
+        printf("%d\n", get_last_suspended(first_job)->pgid);
       }
     }
   }
