@@ -34,6 +34,7 @@ void new_child(job_t *j, process_t *p, bool fg)
   * group the terminal, if appropriate.  This has to be done both by
   * the dsh and in the individual child processes because of
   * potential race conditions.  
+  * hey
   * */
 
   p->pid = getpid();
@@ -65,6 +66,7 @@ void new_child(job_t *j, process_t *p, bool fg)
   int prev_fd[2];
 
   add_new_job(j);
+  
 
   for(p = j->first_process; p; p = p->next) {
 
@@ -85,7 +87,7 @@ void new_child(job_t *j, process_t *p, bool fg)
       case 0: /* child process  */
         p->pid = getpid();      
         /* YOUR CODE HERE?  Child-side code for new process. */
-        print_job(j);
+        //print_job(j);
 
         //set_child_pgid(j, p);
         new_child(j, p, fg);
@@ -145,6 +147,8 @@ void new_child(job_t *j, process_t *p, bool fg)
         p->pid = pid;
         set_child_pgid(j, p);
 
+        if (p->pid == j->pgid) printf("%d(Launched): %s\n", j->pgid, j->commandinfo);
+
         if (p != j->first_process) {
           close(prev_fd[0]);
           close(prev_fd[1]);
@@ -172,12 +176,17 @@ void wait_pid_help(job_t *j, bool fg) {
   int status, pid;
   while((pid = waitpid(-1, &status, WUNTRACED)) > 0) {
     process_t *p = find_process(pid);
-    if(WIFEXITED(status) || WIFSIGNALED(status)) {
+    if(WIFEXITED(status)) { //ctrl d
       p->completed = true;
       fflush(stdout);
-    } else if (WIFSTOPPED(status)) {
-        p->stopped = true;
-        j->notified = true;
+    }
+    else if (WIFSIGNALED(status)) { //ctrl c
+      p->completed = true;
+      fflush(stdout);
+    }
+    else if (WIFSTOPPED(status)) { //ctrl z
+      p->stopped = true;
+      //j->notified = true;
       //j->bg = true;
     }
 
@@ -186,6 +195,7 @@ void wait_pid_help(job_t *j, bool fg) {
       break;
     }
   }
+  //perror("Bad waitpid?");
 }
 
 job_t *find_job(int job_id) {
@@ -249,19 +259,19 @@ bool builtin_cmd(job_t *last_job, int argc, char **argv)
     int job_count = 1;
 
     while(job != NULL) {
-      printf("[%d] (%d)", job_count, job->pgid);
+      printf("%d", job->pgid);
 
       if(job_is_completed(job)) {
-        printf(" Job completed: ");
+        printf("(Completed): ");
       } else if(job_is_stopped(job)){
-        printf(" Job stopped: ");
+        printf("(Stopped): ");
       } else {
-        printf(" Job running in");
+        printf("(Job running in");
         if(job -> bg) {
-          printf(" bg: ");
+          printf(" bg): ");
         }
         else {
-          printf(" fg: ");
+          printf(" fg): ");
         }
       }
 
@@ -277,15 +287,16 @@ bool builtin_cmd(job_t *last_job, int argc, char **argv)
       if(job_is_completed(job)) {
         if(job == jobs_list) {
           job = jobs_list -> next;          
+          free_job(jobs_list);
           jobs_list = job;
         }
         else {
           prev -> next = job -> next;
-          free_job(prev);
+          free_job(job);
           job = prev -> next;
         }
       }
-      else {
+      else{
         prev = job;
         job = job->next;
       }
@@ -333,12 +344,12 @@ bool builtin_cmd(job_t *last_job, int argc, char **argv)
       job_id = job->pgid;
     }
     else {
-      //printf("getting job\n");
+      printf("getting job\n");
       job_id = atoi(argv[1]);
       job = find_job(job_id);
     }
 
-    fflush(stdout);
+    //fflush(stdout);
     continue_job(job);
     job -> bg = false;
     job -> notified = false;
@@ -384,7 +395,12 @@ void call_getcwd ()
 char* promptmsg() 
 {
   /* Modify this to include pid */
-  return "dsh$ ";
+  char prompt[20];
+  char pid[10];
+  strcpy(prompt,"dsh-");
+  snprintf(pid, 10,"%d",(int)getpid());
+  strcat(prompt, pid);
+  return strcat(prompt,"$ ");
 }
 
 int main() 
