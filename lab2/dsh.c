@@ -364,6 +364,8 @@ bool builtin_cmd(job_t *last_job, int argc, char **argv)
     continue_job(job);
     job -> bg = true;
     job -> notified = false;
+    process_t* p = find_process(job->pgid);
+    p->stopped = false;
 
     return true;
   }
