@@ -252,12 +252,6 @@ bool builtin_cmd(job_t *last_job, int argc, char **argv)
     edit_background_ps();
 
     job_t *job = jobs_list;
-    //printf("Last suspended: %d\n", get_last_suspended(first_job)->pgid);
-    while (job != NULL)
-    {
-      printf("%d\n", job->pgid);
-      job = job->next;
-    }
     job = jobs_list;
     int job_count = 1;
 
@@ -375,10 +369,8 @@ job_t* get_last_suspended(job_t *curr){
   job_t* last_suspended;
   while(curr != NULL) {
     if (job_is_stopped(curr)) {
-      //printf("Stopped: %d\n", curr->pgid);
       last_suspended = curr;
     }
-    //else printf("Not Stopped: %d\n", curr->pgid);
     curr = curr->next;
   }
   return last_suspended;
