@@ -14,13 +14,17 @@
 	NetId1: bts7
 	Time spent: 25 hours
 
-	Name2: 
-	NetId2:
-	Time spent: 10 hours
+	Name2: Peter Yom
+	NetId2: pky3
+	Time spent: 25 hours
 
-	Name3: 
-	NetId3:
-	Time spent: 10 hours
+	Name3: Brandon Chao
+	NetId3: bc105
+	Time spent: 20 hours
+
+	Name4: Parker Hegstrom
+	NetId4: eph4
+	Time spent: 15 hours
 
 /******************
  * Files to submit
@@ -49,6 +53,29 @@
  * details to maximize your partial credit.  
  * */
 
+After the shell first initializes, it enters an infinite while loop which receives a list of jobs parsed from the command line.  The shell loops through the list of jobs, checking if each is a built-in command; if not, the shell calls spawn_job on them.
+
+The available built in commands are ‘quit’, ‘jobs’, ‘cd’, ‘bg’, and ‘fg’.
+
+‘Quit’ was already provided for us.
+
+‘Jobs’ returns the currently running jobs, the stopped jobs, and the recently completed jobs from a singly linked list of job_t call ‘jobs_list’. The ‘jobs’ command will first cycle through ‘jobs_list’ and print out the jobs and their statuses.  Then, it will remove completed jobs from the list.  After ‘jobs’ is called, ‘jobs_list’ should only consist of stopped and running jobs.
+
+‘Cd’ simply invokes a chdir() system call - if there are no arguments, it changes to the home directory, otherwise it changes to the directory passed in.
+
+‘Bg’ will start a stopped job and run it in the background. If no other arguments are given, bg will take the last suspended job and run that. If a pid is given, bg will start that process and run it in the background. Since wait_pid_help isn’t used when a job is running in the bg, another method was created to update the status of those jobs to know when they complete. Each time ‘jobs’ is called, the edit_background_ps function is called which calls waitpid on the processes and updates the status of any that have changed.
+
+‘Fg’ can be used in either of two ways. If no arguments are specified, ‘fg’ will continue the last stopped job in the foreground.  When argc == 1, it represents that ‘fg’ had no other arguments, and the last job that was stopped or suspended is called up.  Otherwise, if an argument was passed, the job is located by the provided pgid argument through the ‘find_job’ method.  After the job is located, the shell continues the job, sets the flags accordingly, gives control of the terminal to the job, and calls waitpid.
+
+Should the command not be a built in command, builtin_cmd will return false and the shell will run spawn_job. This function adds the job to a list of running jobs, then loops through each process in the job. The shell forks a new process for each, using a switch tree to direct the parent and child accordingly. Within the child, the code checks for piping (described below) and I/O redirection. In the case of redirection, the program changes stdin and/or stdout to the file descriptor(s) of the file(s) given as arguments. Once this is sorted out, the child calls exec to finish running. The parent process announces that is has launched the child and stores the appropriate info before finally calling the wait_pid_help function.
+
+This function waits for every child of the parents and contains code to handle the passing in of signals ctrl-z, ctrl-c, and ctrl-d. The logic for determining which signal (or the EOF character) changed the child process’s state was handled by various functions that are specific to the waitpid*() function. These functions include the WIFEXITED(), WIFSIGNALED(), and WIFSTOPPED(). If any of these function calls returned true, we would update the job_t state variables accordingly. Once the job is completed, the parent returns control to the terminal and awaits the input of further commands.
+
+Piping is addressed in the spawn_job function. An int array for prev_fd represents the file descriptors for the pipe between the previous and current processes. The next_fd represents the file descriptors for the pipe between the current and next processes. As we loop through the processes in the current job, if there is a next process, then we pipe the next_fd. Then in the switch case where we deal with the child process at case 0, if its not the first process, then we close the both ends of the prev_fd and copy the read in into the STDIN_FILENO. Similarly, if the next process is not null, we copy the write end of next_fd into STDOUT_FILENO and then close both ends of the next_fd pipe. Finally, in the default case for the parent, we make sure to close any remaining ends of the pipe and increment the pipe for the next iteration of the loop by setting the prev_fd equal to the next_fd.
+
+
+
+
 /************************
  * Feedback on the lab
  ************************/
@@ -65,3 +92,10 @@
 /*
  * List of collaborators involved including any online references/citations.
  * */
+
+Shuyang Yao
+Emily Shroads
+Professor Chase
+Ryan Toussaint
+
+
